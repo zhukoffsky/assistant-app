@@ -30,7 +30,8 @@ class MagpieConverters {
     fun localTimeToSecondOfDay(value: LocalTime?): Int? = value?.toSecondOfDay()
 
     @TypeConverter
-    fun secondOfDayToLocalTime(value: Int?): LocalTime? = value?.let(LocalTime::ofSecondOfDay)
+    fun secondOfDayToLocalTime(value: Int?): LocalTime? =
+        value?.let { LocalTime.ofSecondOfDay(it.toLong()) }
 
     @TypeConverter
     fun intListToString(value: List<Int>?): String? = value?.joinToString(separator = ",")
