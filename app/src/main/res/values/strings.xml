@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Magpie</string>
+
+    <string name="nav_shopping">Shopping</string>
+    <string name="nav_reminders">Reminders</string>
+    <string name="nav_meds">Medication</string>
+
+    <string name="placeholder_shopping">Voice-added shopping list. Coming in stage 1.</string>
+    <string name="placeholder_reminders">One-off and repeating reminders. Coming in stage 4.</string>
+    <string name="placeholder_meds">Alternating dose schedule and intake history. Coming in stage 6.</string>
+</resources>

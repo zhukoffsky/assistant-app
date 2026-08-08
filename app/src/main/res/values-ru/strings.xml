@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Сорока</string>
+
+    <string name="nav_shopping">Покупки</string>
+    <string name="nav_reminders">Напоминания</string>
+    <string name="nav_meds">Таблетки</string>
+
+    <string name="placeholder_shopping">Список покупок с голосовым вводом. Появится на этапе 1.</string>
+    <string name="placeholder_reminders">Одноразовые и повторяющиеся напоминания. Появятся на этапе 4.</string>
+    <string name="placeholder_meds">Курс с чередованием доз и история приёмов. Появятся на этапе 6.</string>
+</resources>

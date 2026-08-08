@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Тема нужна только для окна до появления Compose-контента.
+      Всё остальное оформление задаётся в MagpieTheme.
+    -->
+    <style name="Theme.Magpie" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
