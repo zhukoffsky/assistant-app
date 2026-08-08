@@ -6,7 +6,13 @@
     <string name="nav_reminders">Reminders</string>
     <string name="nav_meds">Medication</string>
 
-    <string name="placeholder_shopping">Voice-added shopping list. Coming in stage 1.</string>
     <string name="placeholder_reminders">One-off and repeating reminders. Coming in stage 4.</string>
     <string name="placeholder_meds">Alternating dose schedule and intake history. Coming in stage 6.</string>
+
+    <string name="shopping_input_hint">What to buy?</string>
+    <string name="shopping_add">Add</string>
+    <string name="shopping_delete">Delete</string>
+    <string name="shopping_clear_checked">Clear bought</string>
+    <string name="shopping_checked_count">Bought: %1$d</string>
+    <string name="shopping_empty">The list is empty.\nType an item above and tap +.</string>
 </resources>

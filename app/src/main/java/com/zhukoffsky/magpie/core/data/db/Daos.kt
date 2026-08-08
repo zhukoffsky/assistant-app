@@ -22,11 +22,11 @@ interface ShoppingDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(item: ShoppingItemEntity): Long
 
-    @Update
-    suspend fun update(item: ShoppingItemEntity)
+    @Query("UPDATE shopping_items SET isChecked = :isChecked, checkedAt = :checkedAt WHERE id = :id")
+    suspend fun setChecked(id: Long, isChecked: Boolean, checkedAt: Instant?)
 
-    @Delete
-    suspend fun delete(item: ShoppingItemEntity)
+    @Query("DELETE FROM shopping_items WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("DELETE FROM shopping_items WHERE isChecked = 1")
     suspend fun deleteChecked()

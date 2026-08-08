@@ -3,6 +3,7 @@ package com.zhukoffsky.magpie.core.di
 import android.content.Context
 import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
+import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 
 /**
  * Ручной контейнер зависимостей. Живёт столько же, сколько процесс.
@@ -25,4 +26,6 @@ class AppContainer(context: Context) {
     val shoppingDao by lazy { database.shoppingDao() }
     val reminderDao by lazy { database.reminderDao() }
     val medDao by lazy { database.medDao() }
+
+    val shoppingRepository by lazy { ShoppingRepository(shoppingDao) }
 }
