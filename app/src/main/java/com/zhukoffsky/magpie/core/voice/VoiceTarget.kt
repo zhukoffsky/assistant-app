@@ -8,6 +8,7 @@ package com.zhukoffsky.magpie.core.voice
  */
 enum class VoiceTarget {
     SHOPPING,
+    REMINDER,
     ;
 
     companion object {

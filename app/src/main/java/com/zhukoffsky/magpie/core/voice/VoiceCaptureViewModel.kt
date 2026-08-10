@@ -6,12 +6,17 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
+import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
+import com.zhukoffsky.magpie.feature.reminders.domain.ReminderPhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingPhraseParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Clock
+import java.time.ZonedDateTime
 
 /** Почему голосовой ввод не удался. Влияет только на текст сообщения. */
 enum class VoiceFailure {
@@ -26,8 +31,15 @@ sealed interface VoiceCaptureUiState {
     /** Открыт системный диалог распознавания, своего интерфейса не показываем. */
     data object Listening : VoiceCaptureUiState
 
-    /** Распознано; ждём подтверждения и правок. */
-    data class Confirming(val items: List<String>) : VoiceCaptureUiState
+    /** Распознан список покупок; ждём подтверждения и правок. */
+    data class ConfirmingItems(val items: List<String>) : VoiceCaptureUiState
+
+    /** Распознано напоминание; ждём подтверждения. */
+    data class ConfirmingReminder(
+        val title: String,
+        val dueAt: ZonedDateTime,
+        val repeat: RepeatRule?,
+    ) : VoiceCaptureUiState
 
     data class Failed(val reason: VoiceFailure) : VoiceCaptureUiState
 
@@ -38,6 +50,8 @@ sealed interface VoiceCaptureUiState {
 class VoiceCaptureViewModel(
     private val target: VoiceTarget,
     private val shoppingRepository: ShoppingRepository,
+    private val reminderRepository: ReminderRepository,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<VoiceCaptureUiState>(VoiceCaptureUiState.Listening)
@@ -60,13 +74,25 @@ class VoiceCaptureViewModel(
 
     /** @param spoken распознанная фраза; null — отмена, ошибка или тишина. */
     fun onRecognitionResult(spoken: String?) {
-        val items = when (target) {
-            VoiceTarget.SHOPPING -> spoken?.let(ShoppingPhraseParser::parse).orEmpty()
-        }
-        _uiState.value = if (items.isEmpty()) {
-            VoiceCaptureUiState.Failed(VoiceFailure.NOTHING_RECOGNIZED)
-        } else {
-            VoiceCaptureUiState.Confirming(items)
+        _uiState.value = when (target) {
+            VoiceTarget.SHOPPING -> {
+                val items = spoken?.let(ShoppingPhraseParser::parse).orEmpty()
+                if (items.isEmpty()) failure() else VoiceCaptureUiState.ConfirmingItems(items)
+            }
+
+            VoiceTarget.REMINDER -> {
+                val phrase = spoken?.trim().orEmpty()
+                if (phrase.isEmpty()) {
+                    failure()
+                } else {
+                    val parsed = ReminderPhraseParser.parse(phrase, ZonedDateTime.now(clock))
+                    VoiceCaptureUiState.ConfirmingReminder(
+                        title = parsed.title,
+                        dueAt = parsed.dueAt,
+                        repeat = parsed.repeat,
+                    )
+                }
+            }
         }
     }
 
@@ -87,33 +113,59 @@ class VoiceCaptureViewModel(
         items.filterIndexed { i, _ -> i != index }
     }
 
+    fun onTitleChange(value: String) {
+        val current = _uiState.value as? VoiceCaptureUiState.ConfirmingReminder ?: return
+        _uiState.value = current.copy(title = value)
+    }
+
     fun onConfirm() {
-        val items = (_uiState.value as? VoiceCaptureUiState.Confirming)?.items ?: return
-        // Состояние меняем сразу: повторный тап по «Сохранить» до завершения
-        // записи иначе продублирует позиции.
-        _uiState.value = VoiceCaptureUiState.Done
-        viewModelScope.launch {
-            when (target) {
-                VoiceTarget.SHOPPING -> items.forEach { shoppingRepository.add(it) }
+        // Состояние меняем до записи: повторный тап по «Сохранить» иначе
+        // продублирует запись.
+        when (val current = _uiState.value) {
+            is VoiceCaptureUiState.ConfirmingItems -> {
+                _uiState.value = VoiceCaptureUiState.Done
+                viewModelScope.launch {
+                    current.items.forEach { shoppingRepository.add(it) }
+                }
             }
+
+            is VoiceCaptureUiState.ConfirmingReminder -> {
+                _uiState.value = VoiceCaptureUiState.Done
+                viewModelScope.launch {
+                    reminderRepository.add(
+                        title = current.title,
+                        dueAt = current.dueAt.toInstant(),
+                        repeat = current.repeat,
+                    )
+                }
+            }
+
+            else -> Unit
         }
     }
 
+    private fun failure() = VoiceCaptureUiState.Failed(VoiceFailure.NOTHING_RECOGNIZED)
+
     private fun updateItems(transform: (List<String>) -> List<String>) {
-        val current = _uiState.value as? VoiceCaptureUiState.Confirming ?: return
+        val current = _uiState.value as? VoiceCaptureUiState.ConfirmingItems ?: return
         val updated = transform(current.items)
         _uiState.value = if (updated.isEmpty()) {
             VoiceCaptureUiState.Done
         } else {
-            VoiceCaptureUiState.Confirming(updated)
+            VoiceCaptureUiState.ConfirmingItems(updated)
         }
     }
 
     companion object {
         fun factory(target: VoiceTarget): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
-                VoiceCaptureViewModel(target, app.container.shoppingRepository)
+                val container =
+                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
+                VoiceCaptureViewModel(
+                    target = target,
+                    shoppingRepository = container.shoppingRepository,
+                    reminderRepository = container.reminderRepository,
+                )
             }
         }
     }

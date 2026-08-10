@@ -1,5 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      USE_EXACT_ALARM выдаётся системой без участия пользователя, но Google
+      Play разрешает его только будильникам и календарям. Приложение в Play
+      не публикуется, поэтому берём его: иначе пришлось бы гонять владельца
+      в системные настройки за SCHEDULE_EXACT_ALARM после каждой установки.
+      На Android 12 (API 31–32) USE_EXACT_ALARM ещё не существует, там
+      работает SCHEDULE_EXACT_ALARM — он на этих версиях выдаётся сразу.
+    -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
 
     <!--
       Android 11+ прячет от приложения чужие пакеты. Без этого блока
@@ -47,6 +64,26 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/Theme.Magpie.Transparent" />
+
+        <receiver
+            android:name=".feature.reminders.alarm.ReminderAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".feature.reminders.alarm.ReminderActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".feature.reminders.alarm.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".feature.shopping.widget.ShoppingWidgetReceiver"

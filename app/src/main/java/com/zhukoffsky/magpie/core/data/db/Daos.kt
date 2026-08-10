@@ -47,11 +47,14 @@ interface ReminderDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(reminder: ReminderEntity): Long
 
-    @Update
-    suspend fun update(reminder: ReminderEntity)
+    @Query("UPDATE reminders SET isDone = :isDone, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setDone(id: Long, isDone: Boolean, updatedAt: Instant)
 
-    @Delete
-    suspend fun delete(reminder: ReminderEntity)
+    @Query("UPDATE reminders SET dueAt = :dueAt, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setDueAt(id: Long, dueAt: Instant?, updatedAt: Instant)
+
+    @Query("DELETE FROM reminders WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
 
 @Dao

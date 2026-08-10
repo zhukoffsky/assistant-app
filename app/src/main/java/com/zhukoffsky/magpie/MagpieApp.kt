@@ -2,6 +2,7 @@ package com.zhukoffsky.magpie
 
 import android.app.Application
 import com.zhukoffsky.magpie.core.di.AppContainer
+import com.zhukoffsky.magpie.core.notification.MagpieNotifications
 
 /**
  * Точка сборки зависимостей приложения.
@@ -18,5 +19,6 @@ class MagpieApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        MagpieNotifications.ensureChannels(this)
     }
 }

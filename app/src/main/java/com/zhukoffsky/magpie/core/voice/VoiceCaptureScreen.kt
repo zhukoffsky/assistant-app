@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.feature.reminders.ui.dueLabel
 
 /**
  * Оверлей поверх прозрачной активности: пока идёт распознавание, на экране
@@ -33,6 +34,7 @@ fun VoiceCaptureScreen(
     state: VoiceCaptureUiState,
     onItemChange: (Int, String) -> Unit,
     onItemRemove: (Int) -> Unit,
+    onTitleChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
@@ -40,18 +42,76 @@ fun VoiceCaptureScreen(
     when (state) {
         is VoiceCaptureUiState.Listening, VoiceCaptureUiState.Done -> Unit
 
-        is VoiceCaptureUiState.Confirming -> CenteredCard {
-            ConfirmContent(
-                items = state.items,
-                onItemChange = onItemChange,
-                onItemRemove = onItemRemove,
-                onConfirm = onConfirm,
-                onCancel = onCancel,
+        is VoiceCaptureUiState.ConfirmingItems -> CenteredCard {
+            Text(
+                text = stringResource(R.string.voice_confirm_shopping_title),
+                style = MaterialTheme.typography.titleMedium,
             )
+            Column(
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.items.forEachIndexed { index, item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = item,
+                            onValueChange = { onItemChange(index, it) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                        )
+                        IconButton(onClick = { onItemRemove(index) }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = stringResource(R.string.voice_remove_item),
+                            )
+                        }
+                    }
+                }
+            }
+            Buttons(onCancel = onCancel, onConfirm = onConfirm)
+        }
+
+        is VoiceCaptureUiState.ConfirmingReminder -> CenteredCard {
+            Text(
+                text = stringResource(R.string.voice_confirm_reminder_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            OutlinedTextField(
+                value = state.title,
+                onValueChange = onTitleChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            )
+            Text(
+                text = dueLabel(state.dueAt, state.repeat),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Buttons(onCancel = onCancel, onConfirm = onConfirm)
         }
 
         is VoiceCaptureUiState.Failed -> CenteredCard {
-            FailureContent(reason = state.reason, onRetry = onRetry, onCancel = onCancel)
+            val messageRes = when (state.reason) {
+                VoiceFailure.NO_RECOGNIZER -> R.string.voice_error_no_recognizer
+                VoiceFailure.NOTHING_RECOGNIZED -> R.string.voice_error_nothing_recognized
+            }
+            Text(text = stringResource(messageRes), style = MaterialTheme.typography.bodyLarge)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
+                if (state.reason != VoiceFailure.NO_RECOGNIZER) {
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.voice_retry)) }
+                }
+            }
         }
     }
 }
@@ -71,42 +131,7 @@ private fun CenteredCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ConfirmContent(
-    items: List<String>,
-    onItemChange: (Int, String) -> Unit,
-    onItemRemove: (Int) -> Unit,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    Text(
-        text = stringResource(R.string.voice_confirm_shopping_title),
-        style = MaterialTheme.typography.titleMedium,
-    )
-
-    Column(
-        modifier = Modifier
-            .padding(top = 12.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items.forEachIndexed { index, item ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = item,
-                    onValueChange = { onItemChange(index, it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                )
-                IconButton(onClick = { onItemRemove(index) }) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = stringResource(R.string.voice_remove_item),
-                    )
-                }
-            }
-        }
-    }
-
+private fun Buttons(onCancel: () -> Unit, onConfirm: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,31 +140,5 @@ private fun ConfirmContent(
     ) {
         TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_cancel)) }
         TextButton(onClick = onConfirm) { Text(stringResource(R.string.voice_save)) }
-    }
-}
-
-@Composable
-private fun FailureContent(
-    reason: VoiceFailure,
-    onRetry: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    val messageRes = when (reason) {
-        VoiceFailure.NO_RECOGNIZER -> R.string.voice_error_no_recognizer
-        VoiceFailure.NOTHING_RECOGNIZED -> R.string.voice_error_nothing_recognized
-    }
-
-    Text(text = stringResource(messageRes), style = MaterialTheme.typography.bodyLarge)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        horizontalArrangement = Arrangement.End,
-    ) {
-        TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
-        if (reason != VoiceFailure.NO_RECOGNIZER) {
-            TextButton(onClick = onRetry) { Text(stringResource(R.string.voice_retry)) }
-        }
     }
 }

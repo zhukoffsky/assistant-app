@@ -63,6 +63,7 @@ class VoiceCaptureActivity : ComponentActivity() {
                     state = state,
                     onItemChange = viewModel::onItemChange,
                     onItemRemove = viewModel::onItemRemove,
+                    onTitleChange = viewModel::onTitleChange,
                     onConfirm = viewModel::onConfirm,
                     onCancel = ::finish,
                     onRetry = viewModel::onRetry,
@@ -78,7 +79,11 @@ class VoiceCaptureActivity : ComponentActivity() {
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
             )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_prompt_shopping))
+            val promptRes = when (target) {
+                VoiceTarget.SHOPPING -> R.string.voice_prompt_shopping
+                VoiceTarget.REMINDER -> R.string.voice_prompt_reminder
+            }
+            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(promptRes))
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
 

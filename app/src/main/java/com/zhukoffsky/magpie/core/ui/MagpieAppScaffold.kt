@@ -53,7 +53,9 @@ fun MagpieAppScaffold(onVoiceCapture: (VoiceTarget) -> Unit) {
             composable(MagpieDestination.Shopping.route) {
                 ShoppingScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.SHOPPING) })
             }
-            composable(MagpieDestination.Reminders.route) { RemindersScreen() }
+            composable(MagpieDestination.Reminders.route) {
+                RemindersScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.REMINDER) })
+            }
             composable(MagpieDestination.Meds.route) { MedsScreen() }
         }
     }

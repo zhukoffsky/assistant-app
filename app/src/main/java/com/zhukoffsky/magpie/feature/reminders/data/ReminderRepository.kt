@@ -1,0 +1,111 @@
+package com.zhukoffsky.magpie.feature.reminders.data
+
+import com.zhukoffsky.magpie.core.data.db.ReminderDao
+import com.zhukoffsky.magpie.core.data.db.ReminderEntity
+import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
+import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
+import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
+import com.zhukoffsky.magpie.feature.reminders.domain.nextAfter
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.Clock
+import java.time.Instant
+
+class ReminderRepository(
+    private val dao: ReminderDao,
+    private val scheduler: ReminderScheduler,
+    private val clock: Clock = Clock.systemDefaultZone(),
+) {
+
+    fun observeAll(): Flow<List<Reminder>> =
+        dao.observeAll().map { entities -> entities.map { it.toDomain() } }
+
+    suspend fun byId(id: Long): Reminder? = dao.byId(id)?.toDomain()
+
+    suspend fun add(title: String, dueAt: Instant?, repeat: RepeatRule?): Long? {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return null
+
+        val now = clock.instant()
+        val id = dao.insert(
+            ReminderEntity(
+                title = cleanTitle,
+                dueAt = dueAt,
+                repeatRule = repeat?.serialize(),
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        if (dueAt != null) scheduler.schedule(id, dueAt)
+        return id
+    }
+
+    suspend fun setDone(id: Long, isDone: Boolean) {
+        dao.setDone(id, isDone, clock.instant())
+        val reminder = dao.byId(id)?.toDomain() ?: return
+
+        if (isDone) {
+            scheduler.cancel(id)
+        } else {
+            reminder.dueAt?.let { scheduler.schedule(id, it) }
+        }
+    }
+
+    suspend fun delete(id: Long) {
+        scheduler.cancel(id)
+        dao.deleteById(id)
+    }
+
+    /**
+     * Вызывается после срабатывания будильника.
+     *
+     * Повторяющееся напоминание переводится на следующее срабатывание,
+     * одноразовое остаётся в списке просроченным — пока пользователь сам не
+     * отметит его выполненным.
+     */
+    suspend fun onFired(reminder: Reminder) {
+        val repeat = reminder.repeat ?: return
+        val dueAt = reminder.dueAt ?: return
+
+        val next = repeat.nextAfter(
+            after = clock.instant().atZone(clock.zone),
+            timeOfDay = dueAt.atZone(clock.zone),
+        ).toInstant()
+
+        dao.setDueAt(reminder.id, next, clock.instant())
+        scheduler.schedule(reminder.id, next)
+    }
+
+    /**
+     * Восстановление будильников после перезагрузки или обновления
+     * приложения: система забывает все запланированные alarm'ы.
+     */
+    suspend fun rescheduleAll() {
+        val now = clock.instant()
+
+        dao.pendingScheduled().forEach { entity ->
+            val reminder = entity.toDomain()
+            val dueAt = reminder.dueAt ?: return@forEach
+
+            when {
+                dueAt.isAfter(now) -> scheduler.schedule(reminder.id, dueAt)
+
+                // Повтор, чьё время прошло, пока телефон был выключен:
+                // переводим на ближайшее будущее срабатывание.
+                reminder.repeat != null -> onFired(reminder)
+
+                // Пропущенное одноразовое остаётся просроченным в списке;
+                // будить пользователя задним числом смысла нет.
+                else -> Unit
+            }
+        }
+    }
+}
+
+private fun ReminderEntity.toDomain() = Reminder(
+    id = id,
+    title = title,
+    dueAt = dueAt,
+    repeat = RepeatRule.parse(repeatRule),
+    isDone = isDone,
+)
