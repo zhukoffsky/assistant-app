@@ -41,6 +41,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Нужен для BuildConfig.DEBUG: логирование должно исчезать в release.
+        buildConfig = true
     }
 }
 

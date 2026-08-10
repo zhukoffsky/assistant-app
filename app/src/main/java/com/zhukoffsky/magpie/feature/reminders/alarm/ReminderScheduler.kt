@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import java.time.Instant
 
 /**
@@ -27,7 +28,10 @@ class AlarmManagerReminderScheduler(private val context: Context) : ReminderSche
         // Точность здесь важнее экономии батареи, но пропуск дозы или
         // напоминания не критичен — поэтому setExactAndAllowWhileIdle, а не
         // setAlarmClock с иконкой будильника в статус-баре.
-        if (canScheduleExact()) {
+        val exact = canScheduleExact()
+        MagpieLog.i("alarm: reminder=$id at=$at exact=$exact")
+
+        if (exact) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 at.toEpochMilli(),
@@ -48,6 +52,7 @@ class AlarmManagerReminderScheduler(private val context: Context) : ReminderSche
     override fun cancel(id: Long) {
         // FLAG_NO_CREATE возвращает null, если такого будильника нет —
         // отменять нечего.
+        MagpieLog.i("alarm: cancel reminder=$id")
         existingPendingIntent(id)?.let { pendingIntent ->
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()

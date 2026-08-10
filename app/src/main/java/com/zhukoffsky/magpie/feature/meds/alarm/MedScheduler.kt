@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import java.time.Instant
 
 /**
@@ -25,10 +26,12 @@ class AlarmManagerMedScheduler(private val context: Context) : MedScheduler {
         get() = context.getSystemService(AlarmManager::class.java)
 
     override fun scheduleDaily(at: Instant) {
+        MagpieLog.i("alarm: dose daily at=$at")
         setAlarm(at, pendingIntent(REQUEST_DAILY, scheduledAt = null, create = true)!!)
     }
 
     override fun scheduleSnooze(at: Instant, scheduledAt: Instant) {
+        MagpieLog.i("alarm: dose snooze at=$at for=$scheduledAt")
         setAlarm(at, pendingIntent(REQUEST_SNOOZE, scheduledAt, create = true)!!)
     }
 

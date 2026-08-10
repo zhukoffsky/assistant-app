@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.zhukoffsky.magpie.MagpieApp
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.core.notification.MagpieNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,8 +27,14 @@ class MedAlarmReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             try {
                 val repository = (appContext as MagpieApp).container.medRepository
-                val (course, intake) = repository.onAlarm(scheduledAt) ?: return@launch
+                val result = repository.onAlarm(scheduledAt)
+                if (result == null) {
+                    MagpieLog.w("fired: dose alarm without an active course")
+                    return@launch
+                }
 
+                val (course, intake) = result
+                MagpieLog.i("fired: dose=${intake.doseMg}mg scheduled=${intake.scheduledAt}")
                 MagpieNotifications.showDose(appContext, course, intake)
             } finally {
                 pendingResult.finish()

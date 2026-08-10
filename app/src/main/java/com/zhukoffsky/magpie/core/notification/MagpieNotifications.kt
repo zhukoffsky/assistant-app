@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.zhukoffsky.magpie.MainActivity
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.feature.meds.alarm.MedActionReceiver
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
 import com.zhukoffsky.magpie.feature.meds.domain.MedIntake
@@ -62,7 +63,11 @@ object MagpieNotifications {
      * и старое уведомление должно замещаться, а не копиться.
      */
     fun showDose(context: Context, course: MedCourse, intake: MedIntake) {
-        if (!canPost(context)) return
+        if (!canPost(context)) {
+            MagpieLog.w("notify: dose suppressed, no POST_NOTIFICATIONS")
+            return
+        }
+        MagpieLog.i("notify: dose=${intake.doseMg}mg")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_MEDS)
             .setSmallIcon(R.drawable.ic_notification)
@@ -97,7 +102,11 @@ object MagpieNotifications {
     }
 
     fun showReminder(context: Context, reminder: Reminder) {
-        if (!canPost(context)) return
+        if (!canPost(context)) {
+            MagpieLog.w("notify: reminder=${reminder.id} suppressed, no POST_NOTIFICATIONS")
+            return
+        }
+        MagpieLog.i("notify: reminder=${reminder.id}")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)

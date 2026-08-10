@@ -3,6 +3,7 @@ package com.zhukoffsky.magpie.core.sync
 import com.zhukoffsky.magpie.core.data.db.ReminderDao
 import com.zhukoffsky.magpie.core.data.db.ReminderEntity
 import com.zhukoffsky.magpie.core.data.db.SyncState
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 import java.time.ZoneId
@@ -88,12 +89,14 @@ class RemindersSyncer(
                 // потратят время и трафик.
                 dao.setSyncState(reminder.id, SyncState.ERROR)
                 preferences.recordError(outcome)
+                MagpieLog.w("sync: failed on reminder=${reminder.id}: $outcome")
                 return SyncOutcome.Retry(outcome)
             }
             uploaded++
         }
 
         preferences.recordSuccess(clock.instant())
+        MagpieLog.i("sync: uploaded=$uploaded")
         return SyncOutcome.Success(uploaded)
     }
 

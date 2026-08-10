@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.feature.reminders.domain
 
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import java.time.ZonedDateTime
 
 /**
@@ -32,10 +33,17 @@ class HybridPhraseParser(
 ) : PhraseParser {
 
     override suspend fun parse(phrase: String, now: ZonedDateTime): ParsedReminder {
-        rules.parse(phrase, now)?.let { return it }
+        rules.parse(phrase, now)?.let {
+            MagpieLog.i("parse: rules")
+            return it
+        }
 
-        llm?.parse(phrase, now)?.let { return it }
+        llm?.parse(phrase, now)?.let {
+            MagpieLog.i("parse: llm")
+            return it
+        }
 
+        MagpieLog.i("parse: fallback, default time used")
         return ReminderPhraseParser.parse(phrase, now)
     }
 }

@@ -3,6 +3,7 @@ package com.zhukoffsky.magpie.feature.reminders.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.MagpieApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,9 +24,11 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             try {
+                MagpieLog.i("boot: rescheduling alarms after ${intent.action}")
                 val container = (appContext as MagpieApp).container
                 container.reminderRepository.rescheduleAll()
                 container.medRepository.scheduleNext()
+                MagpieLog.i("boot: done")
             } finally {
                 pendingResult.finish()
             }
