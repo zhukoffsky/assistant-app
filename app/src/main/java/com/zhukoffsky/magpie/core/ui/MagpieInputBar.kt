@@ -1,11 +1,13 @@
 package com.zhukoffsky.magpie.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,12 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+
+/** Единый отступ таблетки: и по краям, и между полем и кнопками. */
+private val INSET = 8.dp
 
 /**
  * Строка ввода: поле и обе кнопки живут внутри одной стеклянной таблетки.
@@ -58,38 +61,45 @@ fun MagpieInputBar(
         shape = RoundedCornerShape(MagpieRadius.md),
     ) {
         Row(
+            /*
+             * Отступ одинаковый со всех сторон. Держится он на том, что
+             * высоту таблетки задают кнопки, а не поле: у Material `TextField`
+             * своя минимальная высота 56 dp, из-за неё кнопка центрировалась
+             * в более высокой строке и сверху с боков зазоры расходились.
+             * `BasicTextField` своей высоты не навязывает.
+             */
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(6.dp),
+                .padding(INSET),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(INSET),
         ) {
-            TextField(
+            BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
                 singleLine = true,
-                placeholder = {
-                    Text(text = placeholder, color = MagpieTheme.colors.ink3)
-                },
-                textStyle = MaterialTheme.typography.bodyLarge,
+                textStyle = MaterialTheme.typography.bodyLarge
+                    .copy(color = MagpieTheme.colors.ink),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 // Клавиатура намеренно не скрывается: подряд идущие записи
                 // удобнее добавлять не закрывая её.
                 keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                // Поле рисует только текст: фон и рамку даёт стекло вокруг,
-                // иначе получилось бы две рамки одна в другой.
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    focusedTextColor = MagpieTheme.colors.ink,
-                    unfocusedTextColor = MagpieTheme.colors.ink,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                ),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MagpieTheme.colors.ink3,
+                            )
+                        }
+                        inner()
+                    }
+                },
             )
             AccentSquareButton(onClick = onSubmit, contentDescription = addContentDescription) {
                 Icon(Icons.Default.Add, contentDescription = null)

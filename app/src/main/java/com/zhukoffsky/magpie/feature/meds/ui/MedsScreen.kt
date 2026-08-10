@@ -8,13 +8,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +39,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.staggeredEntrance
+import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
+import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
 import com.zhukoffsky.magpie.core.ui.DatePickerDialog
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
@@ -216,17 +225,23 @@ private fun CourseContent(
             TextButton(onClick = onDelete) { Text(stringResource(R.string.med_delete_course)) }
         }
 
-        HorizontalDivider()
-
         Text(
             text = stringResource(R.string.med_history_title),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MagpieTheme.colors.ink2,
+            modifier = Modifier.padding(start = 22.dp, top = 10.dp, bottom = 6.dp),
         )
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(items = state.history, key = { it.date.toEpochDay() }) { day ->
-                HistoryRow(day = day, onTakenOn = onTakenOn)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            itemsIndexed(
+                items = state.history,
+                key = { _, day -> day.date.toEpochDay() },
+            ) { index, day ->
+                HistoryRow(day = day, index = index, onTakenOn = onTakenOn)
             }
         }
     }
@@ -240,25 +255,43 @@ private fun TodayCard(
     onTaken: () -> Unit,
     onSnooze: (Long) -> Unit,
 ) {
-    Card(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(MagpieRadius.lg),
+        strong = true,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = course.name, style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = course.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MagpieTheme.colors.ink2,
+                )
+                Text(
+                    text = statusLabel(state.todayStatus),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (state.todayStatus == IntakeStatus.TAKEN) {
+                        MagpieTheme.colors.ok
+                    } else {
+                        MagpieTheme.colors.ink2
+                    },
+                )
+            }
 
+            // Доза — главный объект экрана, поэтому набрана самым крупным
+            // кеглем шкалы, а название курса ушло в подпись над ней.
             Text(
                 text = state.todayDoseMg
                     ?.let { stringResource(R.string.med_today_dose, it) }
                     ?: stringResource(R.string.med_no_dose_today),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            Text(
-                text = statusLabel(state.todayStatus),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.displaySmall,
+                color = MagpieTheme.colors.ink,
+                modifier = Modifier.padding(top = 8.dp),
             )
 
             if (state.todayStatus != IntakeStatus.TAKEN && state.todayDoseMg != null) {
@@ -266,22 +299,34 @@ private fun TodayCard(
                     onClick = onTaken,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
+                        .padding(top = 16.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(MagpieRadius.md),
                 ) {
                     Text(stringResource(R.string.med_action_taken))
                 }
 
                 Text(
                     text = stringResource(R.string.med_snooze),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MedsViewModel.SNOOZE_OPTIONS.forEach { minutes ->
                         AssistChip(
                             onClick = { onSnooze(minutes) },
-                            label = { Text(stringResource(R.string.med_snooze_minutes, minutes)) },
+                            shape = RoundedCornerShape(MagpieRadius.sm),
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.med_snooze_minutes, minutes),
+                                    color = MagpieTheme.colors.ink,
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MagpieTheme.colors.glass,
+                            ),
+                            border = BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
                         )
                     }
                 }
@@ -291,29 +336,40 @@ private fun TodayCard(
 }
 
 @Composable
-private fun HistoryRow(day: DoseDay, onTakenOn: (LocalDate) -> Unit) {
+private fun HistoryRow(day: DoseDay, index: Int, onTakenOn: (LocalDate) -> Unit) {
     val dateFormatter = remember {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
     }
 
-    Row(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .then(staggeredEntrance(index)),
+        shape = RoundedCornerShape(MagpieRadius.md),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = day.date.format(dateFormatter), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "${day.doseMg} ${stringResource(R.string.med_unit_mg)} · ${statusLabel(day.status)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = day.date.format(dateFormatter),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MagpieTheme.colors.ink,
+                )
+                Text(
+                    text = "${day.doseMg} ${stringResource(R.string.med_unit_mg)} · ${statusLabel(day.status)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
+                )
+            }
 
-        if (day.status != IntakeStatus.TAKEN) {
-            OutlinedButton(onClick = { onTakenOn(day.date) }) {
-                Text(stringResource(R.string.med_mark_taken))
+            if (day.status != IntakeStatus.TAKEN) {
+                TextButton(onClick = { onTakenOn(day.date) }) {
+                    Text(stringResource(R.string.med_mark_taken))
+                }
             }
         }
     }
