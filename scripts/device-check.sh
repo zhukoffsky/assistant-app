@@ -79,7 +79,10 @@ run adb shell cmd appops get "$PKG" SCHEDULE_EXACT_ALARM
 run adb shell cmd appops get "$PKG" POST_NOTIFICATION
 run adb shell dumpsys deviceidle whitelist
 log "notification listeners"
-adb shell dumpsys notification_manager 2>/dev/null | grep -i -A 4 "$PKG" >>"$REPORT" 2>&1
+# Сервис называется `notification`; `notification_manager` не существует, и
+# dumpsys на него отвечает «Can't find service» в stderr — с 2>/dev/null это
+# выглядело как «уведомлений нет».
+adb shell dumpsys notification 2>/dev/null | grep -i -A 4 "$PKG" >>"$REPORT" 2>&1
 
 pause "Разреши уведомления, если система спросит. Открой вкладку «Настройки» и посмотри, что горит красным"
 log "settings tab reported by user"
