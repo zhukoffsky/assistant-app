@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.zhukoffsky.magpie.core.ui.MagpieAppScaffold
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 
 class MainActivity : ComponentActivity() {
 
@@ -14,7 +15,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MagpieTheme {
-                MagpieAppScaffold()
+                // Запуск активности — обязанность точки входа, а не composable.
+                MagpieAppScaffold(
+                    onVoiceCapture = { target ->
+                        startActivity(VoiceCaptureActivity.intent(this, target))
+                    },
+                )
             }
         }
     }

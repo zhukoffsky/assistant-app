@@ -17,12 +17,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.meds.ui.MedsScreen
 import com.zhukoffsky.magpie.feature.reminders.ui.RemindersScreen
 import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 
 @Composable
-fun MagpieAppScaffold() {
+fun MagpieAppScaffold(onVoiceCapture: (VoiceTarget) -> Unit) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -49,7 +50,9 @@ fun MagpieAppScaffold() {
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            composable(MagpieDestination.Shopping.route) { ShoppingScreen() }
+            composable(MagpieDestination.Shopping.route) {
+                ShoppingScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.SHOPPING) })
+            }
             composable(MagpieDestination.Reminders.route) { RemindersScreen() }
             composable(MagpieDestination.Meds.route) { MedsScreen() }
         }

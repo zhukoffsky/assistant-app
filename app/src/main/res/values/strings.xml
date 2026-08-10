@@ -15,4 +15,15 @@
     <string name="shopping_clear_checked">Clear bought</string>
     <string name="shopping_checked_count">Bought: %1$d</string>
     <string name="shopping_empty">The list is empty.\nType an item above and tap +.</string>
+
+    <string name="voice_input">Dictate</string>
+    <string name="voice_prompt_shopping">What to buy?</string>
+    <string name="voice_confirm_shopping_title">Add to the shopping list</string>
+    <string name="voice_remove_item">Remove</string>
+    <string name="voice_save">Save</string>
+    <string name="voice_cancel">Cancel</string>
+    <string name="voice_retry">Retry</string>
+    <string name="voice_close">Close</string>
+    <string name="voice_error_nothing_recognized">Nothing was recognised. Speech recognition needs an internet connection.</string>
+    <string name="voice_error_no_recognizer">This device has no speech recognition app.</string>
 </resources>

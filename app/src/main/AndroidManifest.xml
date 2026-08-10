@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      Android 11+ прячет от приложения чужие пакеты. Без этого блока
+      распознаватель речи не виден и запуск падает в ActivityNotFoundException.
+
+      Разрешение RECORD_AUDIO не объявлено намеренно: записывает
+      приложение-распознаватель в своём процессе, нам микрофон не нужен.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MagpieApp"
         android:allowBackup="false"
@@ -22,6 +35,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Отдельная задача и excludeFromRecents: быстрый ввод не должен
+          оседать в списке недавних и мешать стеку главного экрана.
+        -->
+        <activity
+            android:name=".core.voice.VoiceCaptureActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Magpie.Transparent" />
     </application>
 
 </manifest>

@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -42,6 +43,7 @@ import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 
 @Composable
 fun ShoppingScreen(
+    onVoiceInput: () -> Unit,
     viewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -50,6 +52,7 @@ fun ShoppingScreen(
         state = state,
         onInputChange = viewModel::onInputChange,
         onAddClick = viewModel::onAddClick,
+        onVoiceInput = onVoiceInput,
         onCheckedChange = viewModel::onCheckedChange,
         onDelete = viewModel::onDelete,
         onClearChecked = viewModel::onClearChecked,
@@ -61,6 +64,7 @@ private fun ShoppingScreenContent(
     state: ShoppingUiState,
     onInputChange: (String) -> Unit,
     onAddClick: () -> Unit,
+    onVoiceInput: () -> Unit,
     onCheckedChange: (ShoppingItem, Boolean) -> Unit,
     onDelete: (ShoppingItem) -> Unit,
     onClearChecked: () -> Unit,
@@ -70,6 +74,7 @@ private fun ShoppingScreenContent(
             value = state.input,
             onValueChange = onInputChange,
             onSubmit = onAddClick,
+            onVoiceInput = onVoiceInput,
         )
 
         if (state.checkedCount > 0) {
@@ -114,6 +119,7 @@ private fun InputRow(
     value: String,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onVoiceInput: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -135,6 +141,12 @@ private fun InputRow(
         )
         FilledIconButton(onClick = onSubmit) {
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.shopping_add))
+        }
+        FilledIconButton(onClick = onVoiceInput) {
+            Icon(
+                painter = painterResource(R.drawable.ic_mic),
+                contentDescription = stringResource(R.string.voice_input),
+            )
         }
     }
 }

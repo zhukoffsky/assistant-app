@@ -15,4 +15,15 @@
     <string name="shopping_clear_checked">Убрать купленное</string>
     <string name="shopping_checked_count">Куплено: %1$d</string>
     <string name="shopping_empty">Список пуст.\nВведи покупку сверху и нажми +.</string>
+
+    <string name="voice_input">Продиктовать</string>
+    <string name="voice_prompt_shopping">Что купить?</string>
+    <string name="voice_confirm_shopping_title">Добавить в список покупок</string>
+    <string name="voice_remove_item">Убрать</string>
+    <string name="voice_save">Сохранить</string>
+    <string name="voice_cancel">Отмена</string>
+    <string name="voice_retry">Повторить</string>
+    <string name="voice_close">Закрыть</string>
+    <string name="voice_error_nothing_recognized">Ничего не распознано. Для распознавания речи нужен интернет.</string>
+    <string name="voice_error_no_recognizer">На устройстве нет приложения для распознавания речи.</string>
 </resources>

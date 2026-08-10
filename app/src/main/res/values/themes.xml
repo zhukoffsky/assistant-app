@@ -8,4 +8,15 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+
+    <!--
+      Для голосового ввода: пока работает системный диалог распознавания,
+      под ним должен оставаться прежний экран, а не белый прямоугольник.
+    -->
+    <style name="Theme.Magpie.Transparent" parent="Theme.Magpie">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
