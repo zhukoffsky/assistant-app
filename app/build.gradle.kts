@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 android {
@@ -42,9 +43,16 @@ android {
     }
 }
 
-ksp {
-    // Схема БД в git — нужна для будущих миграций и их тестов.
-    arg("room.schemaLocation", "$projectDir/schemas")
+/**
+ * Схема БД в git — нужна для будущих миграций и их тестов.
+ *
+ * Через плагин, а не через `ksp { arg("room.schemaLocation", ...) }`:
+ * при ручной настройке kspDebugKotlin и kspReleaseKotlin пишут в один файл
+ * параллельно и роняют сборку с «Empty schema file». Плагин раскладывает
+ * схемы по вариантам и расставляет зависимости между задачами.
+ */
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
