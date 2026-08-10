@@ -37,4 +37,23 @@ class FakeReminderDao : ReminderDao {
     override suspend fun deleteById(id: Long) {
         items.value = items.value.filterNot { it.id == id }
     }
+
+    override suspend fun pendingSync(limit: Int): List<ReminderEntity> =
+        items.value.filter { it.syncState != SyncState.SYNCED }.take(limit)
+
+    override suspend fun setSyncState(id: Long, syncState: SyncState) {
+        items.value = items.value.map { if (it.id == id) it.copy(syncState = syncState) else it }
+    }
+
+    override suspend fun setRemoteId(id: Long, remoteTaskId: String?, syncState: SyncState) {
+        items.value = items.value.map {
+            if (it.id == id) it.copy(remoteTaskId = remoteTaskId, syncState = syncState) else it
+        }
+    }
+
+    override suspend fun markEverythingForUpload() {
+        items.value = items.value.map {
+            if (it.syncState == SyncState.LOCAL_ONLY) it.copy(syncState = SyncState.PENDING_UPLOAD) else it
+        }
+    }
 }

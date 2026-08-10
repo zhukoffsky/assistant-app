@@ -7,6 +7,15 @@
     <string name="nav_meds">Medication</string>
     <string name="nav_settings">Settings</string>
 
+    <string name="sync_title">Google Tasks</string>
+    <string name="sync_one_way_note">One way only: reminders are pushed to Google. Changes made there are not read back.</string>
+    <string name="sync_connect">Connect Google Tasks</string>
+    <string name="sync_last">Last sync: %1$s</string>
+    <string name="sync_never">Not synced yet</string>
+    <string name="sync_error">Error: %1$s</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_disconnect">Disconnect</string>
+
     <string name="diag_title">Delivery check</string>
     <string name="diag_subtitle">A reminder that never arrives looks exactly like a reminder that was never created. Everything the system can silently block is listed here.</string>
     <string name="diag_fix">Fix</string>

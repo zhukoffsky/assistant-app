@@ -7,6 +7,15 @@
     <string name="nav_meds">Таблетки</string>
     <string name="nav_settings">Настройки</string>
 
+    <string name="sync_title">Google Tasks</string>
+    <string name="sync_one_way_note">Только в одну сторону: напоминания выгружаются в Google. Изменения, сделанные там, обратно не читаются.</string>
+    <string name="sync_connect">Подключить Google Tasks</string>
+    <string name="sync_last">Последняя синхронизация: %1$s</string>
+    <string name="sync_never">Ещё не синхронизировалось</string>
+    <string name="sync_error">Ошибка: %1$s</string>
+    <string name="sync_now">Синхронизировать сейчас</string>
+    <string name="sync_disconnect">Отключить</string>
+
     <string name="diag_title">Проверка доставки</string>
     <string name="diag_subtitle">Напоминание, которое не пришло, ничем не отличается от напоминания, которого не было. Здесь собрано всё, что система может тихо запретить.</string>
     <string name="diag_fix">Исправить</string>

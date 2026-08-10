@@ -1,5 +1,9 @@
 package com.zhukoffsky.magpie.feature.settings.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,6 +35,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.sync.SyncSettings
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -36,6 +46,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
+    val consentRequest by viewModel.consentRequest.collectAsStateWithLifecycle()
 
     // Пользователь уходит в системные настройки и возвращается — состояние
     // надо перечитать, иначе экран будет показывать вчерашнюю правду.
@@ -44,7 +56,28 @@ fun SettingsScreen(
         onPauseOrDispose { }
     }
 
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        viewModel.onConsentHandled(granted = result.resultCode == Activity.RESULT_OK)
+    }
+
+    LaunchedEffect(consentRequest) {
+        consentRequest?.let { pendingIntent ->
+            consentLauncher.launch(IntentSenderRequest.Builder(pendingIntent).build())
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
+        GoogleSyncCard(
+            settings = syncSettings,
+            onConnect = viewModel::onConnectGoogle,
+            onSyncNow = viewModel::onSyncNow,
+            onDisconnect = viewModel::onDisconnectGoogle,
+        )
+
+        HorizontalDivider()
+
         Text(
             text = stringResource(R.string.diag_title),
             style = MaterialTheme.typography.titleMedium,
@@ -82,6 +115,64 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun GoogleSyncCard(
+    settings: SyncSettings,
+    onConnect: () -> Unit,
+    onSyncNow: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    val formatter = remember {
+        DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault())
+    }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            text = stringResource(R.string.sync_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.sync_one_way_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+
+        if (!settings.isEnabled) {
+            Button(
+                onClick = onConnect,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            ) {
+                Text(stringResource(R.string.sync_connect))
+            }
+            return@Column
+        }
+
+        Text(
+            text = settings.lastSyncAt
+                ?.let { stringResource(R.string.sync_last, formatter.format(it)) }
+                ?: stringResource(R.string.sync_never),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+
+        settings.lastError?.let { error ->
+            Text(
+                text = stringResource(R.string.sync_error, error),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onSyncNow) { Text(stringResource(R.string.sync_now)) }
+            TextButton(onClick = onDisconnect) { Text(stringResource(R.string.sync_disconnect)) }
         }
     }
 }

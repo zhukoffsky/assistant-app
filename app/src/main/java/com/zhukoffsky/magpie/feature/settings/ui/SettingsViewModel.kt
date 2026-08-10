@@ -1,16 +1,25 @@
 package com.zhukoffsky.magpie.feature.settings.ui
 
+import android.app.PendingIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
+import com.zhukoffsky.magpie.core.sync.AuthorizationResult
+import com.zhukoffsky.magpie.core.sync.RemindersSyncer
+import com.zhukoffsky.magpie.core.sync.SyncSettings
+import com.zhukoffsky.magpie.core.sync.SyncTrigger
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val checks: List<DiagnosticCheck> = emptyList(),
@@ -21,10 +30,22 @@ data class SettingsUiState(
 class SettingsViewModel(
     private val inspector: DiagnosticsInspector,
     private val testAlarmScheduler: TestAlarmScheduler,
+    private val syncer: RemindersSyncer,
+    private val syncTrigger: SyncTrigger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    val syncSettings: StateFlow<SyncSettings> = syncer.settings.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = SyncSettings(),
+    )
+
+    /** Экран согласия Google. Запустить его может только активность. */
+    private val _consentRequest = MutableStateFlow<PendingIntent?>(null)
+    val consentRequest: StateFlow<PendingIntent?> = _consentRequest.asStateFlow()
 
     /**
      * Перечитывает состояние разрешений. Вызывается при каждом возврате на
@@ -40,13 +61,41 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(testScheduled = true)
     }
 
+    fun onConnectGoogle() {
+        viewModelScope.launch {
+            syncer.enable()
+
+            when (val result = syncer.authorize()) {
+                is AuthorizationResult.Authorized -> syncTrigger.requestSync()
+                is AuthorizationResult.NeedsConsent -> _consentRequest.value = result.pendingIntent
+                is AuthorizationResult.Failed -> Unit // текст ошибки покажет следующая попытка
+            }
+        }
+    }
+
+    fun onConsentHandled(granted: Boolean) {
+        _consentRequest.value = null
+        if (granted) syncTrigger.requestSync()
+    }
+
+    fun onSyncNow() = syncTrigger.requestSync()
+
+    fun onDisconnectGoogle() {
+        viewModelScope.launch { syncer.disable() }
+    }
+
     companion object {
+        private const val STOP_TIMEOUT_MS = 5_000L
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
+                val container =
+                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
                 SettingsViewModel(
-                    inspector = app.container.diagnosticsInspector,
-                    testAlarmScheduler = app.container.testAlarmScheduler,
+                    inspector = container.diagnosticsInspector,
+                    testAlarmScheduler = container.testAlarmScheduler,
+                    syncer = container.remindersSyncer,
+                    syncTrigger = container.syncTrigger,
                 )
             }
         }

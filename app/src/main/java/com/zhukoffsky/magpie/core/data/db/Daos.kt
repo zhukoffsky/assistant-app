@@ -55,6 +55,19 @@ interface ReminderDao {
 
     @Query("DELETE FROM reminders WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM reminders WHERE syncState != 'SYNCED' LIMIT :limit")
+    suspend fun pendingSync(limit: Int): List<ReminderEntity>
+
+    @Query("UPDATE reminders SET syncState = :syncState WHERE id = :id")
+    suspend fun setSyncState(id: Long, syncState: SyncState)
+
+    @Query("UPDATE reminders SET remoteTaskId = :remoteTaskId, syncState = :syncState WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteTaskId: String?, syncState: SyncState)
+
+    /** При первом включении синхронизации выгрузить нужно всё накопленное. */
+    @Query("UPDATE reminders SET syncState = 'PENDING_UPLOAD' WHERE syncState = 'LOCAL_ONLY'")
+    suspend fun markEverythingForUpload()
 }
 
 @Dao

@@ -2,6 +2,8 @@ package com.zhukoffsky.magpie.feature.reminders.data
 
 import com.zhukoffsky.magpie.core.data.db.ReminderDao
 import com.zhukoffsky.magpie.core.data.db.ReminderEntity
+import com.zhukoffsky.magpie.core.data.db.SyncState
+import com.zhukoffsky.magpie.core.sync.SyncTrigger
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
@@ -15,6 +17,7 @@ class ReminderRepository(
     private val dao: ReminderDao,
     private val scheduler: ReminderScheduler,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val syncTrigger: SyncTrigger = SyncTrigger.None,
 ) {
 
     fun observeAll(): Flow<List<Reminder>> =
@@ -34,9 +37,11 @@ class ReminderRepository(
                 repeatRule = repeat?.serialize(),
                 createdAt = now,
                 updatedAt = now,
+                syncState = SyncState.PENDING_UPLOAD,
             ),
         )
         if (dueAt != null) scheduler.schedule(id, dueAt)
+        syncTrigger.requestSync()
         return id
     }
 
@@ -49,11 +54,19 @@ class ReminderRepository(
         } else {
             reminder.dueAt?.let { scheduler.schedule(id, it) }
         }
+
+        markForUpload(id)
     }
 
     suspend fun delete(id: Long) {
+        // Идентификатор в Google нужно забрать до удаления строки: после
+        // него узнать, что удалять на той стороне, будет неоткуда.
+        val remoteTaskId = dao.byId(id)?.remoteTaskId
+
         scheduler.cancel(id)
         dao.deleteById(id)
+
+        remoteTaskId?.let(syncTrigger::requestRemoteDelete)
     }
 
     /**
@@ -74,6 +87,12 @@ class ReminderRepository(
 
         dao.setDueAt(reminder.id, next, clock.instant())
         scheduler.schedule(reminder.id, next)
+        markForUpload(reminder.id)
+    }
+
+    private suspend fun markForUpload(id: Long) {
+        dao.setSyncState(id, SyncState.PENDING_UPLOAD)
+        syncTrigger.requestSync()
     }
 
     /**
