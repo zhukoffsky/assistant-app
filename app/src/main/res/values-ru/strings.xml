@@ -5,6 +5,26 @@
     <string name="nav_shopping">Покупки</string>
     <string name="nav_reminders">Напоминания</string>
     <string name="nav_meds">Таблетки</string>
+    <string name="nav_settings">Настройки</string>
+
+    <string name="diag_title">Проверка доставки</string>
+    <string name="diag_subtitle">Напоминание, которое не пришло, ничем не отличается от напоминания, которого не было. Здесь собрано всё, что система может тихо запретить.</string>
+    <string name="diag_fix">Исправить</string>
+    <string name="diag_notifications">Уведомления разрешены</string>
+    <string name="diag_notifications_problem">Не покажется вообще ничего — ни напоминания, ни приём таблеток.</string>
+    <string name="diag_channel_reminders">Канал «Напоминания» включён</string>
+    <string name="diag_channel_meds">Канал «Приём лекарств» включён</string>
+    <string name="diag_channel_problem">Канал выключен, уведомления этого типа отбрасываются молча.</string>
+    <string name="diag_exact_alarms">Точные будильники разрешены</string>
+    <string name="diag_exact_alarms_problem">Будильники сработают, но система вправе задержать их на десятки минут.</string>
+    <string name="diag_battery">Оптимизация батареи отключена</string>
+    <string name="diag_battery_problem">В глубоком сне система может придержать будильник до того, как телефон возьмут в руки.</string>
+    <string name="diag_recognizer">Распознавание речи доступно</string>
+    <string name="diag_recognizer_problem">На устройстве нет приложения, умеющего распознавать речь, — голосовой ввод работать не будет.</string>
+    <string name="diag_test_button">Прислать тестовое через минуту</string>
+    <string name="diag_test_scheduled">Запланировано. Заблокируй экран и отложи телефон — так проверка честнее.</string>
+    <string name="diag_test_notification_title">Тестовое уведомление</string>
+    <string name="diag_test_notification_text">Доставка работает: напоминания придут так же.</string>
 
     <string name="med_setup_title">Курс приёма</string>
     <string name="med_name_hint">Название лекарства</string>

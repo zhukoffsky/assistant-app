@@ -112,6 +112,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".core.diagnostics.TestAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".feature.meds.alarm.MedAlarmReceiver"
             android:exported="false" />
 

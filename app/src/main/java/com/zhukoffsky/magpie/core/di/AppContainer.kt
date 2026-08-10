@@ -3,6 +3,8 @@ package com.zhukoffsky.magpie.core.di
 import android.content.Context
 import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
+import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
+import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.feature.meds.alarm.AlarmManagerMedScheduler
 import com.zhukoffsky.magpie.feature.meds.alarm.MedScheduler
 import com.zhukoffsky.magpie.feature.meds.data.MedRepository
@@ -40,4 +42,7 @@ class AppContainer(context: Context) {
 
     val medScheduler: MedScheduler by lazy { AlarmManagerMedScheduler(appContext) }
     val medRepository by lazy { MedRepository(medDao, medScheduler) }
+
+    val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
+    val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
 }

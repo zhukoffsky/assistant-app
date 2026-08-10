@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.zhukoffsky.magpie.R
@@ -17,6 +18,7 @@ enum class MagpieDestination(
     Shopping("shopping", R.string.nav_shopping, Icons.Default.ShoppingCart),
     Reminders("reminders", R.string.nav_reminders, Icons.Default.Notifications),
     Meds("meds", R.string.nav_meds, Icons.Default.Favorite),
+    Settings("settings", R.string.nav_settings, Icons.Default.Settings),
     ;
 
     companion object {

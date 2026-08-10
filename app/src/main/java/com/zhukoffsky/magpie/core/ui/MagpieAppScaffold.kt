@@ -17,13 +17,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.meds.ui.MedsScreen
 import com.zhukoffsky.magpie.feature.reminders.ui.RemindersScreen
+import com.zhukoffsky.magpie.feature.settings.ui.SettingsScreen
 import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 
 @Composable
-fun MagpieAppScaffold(onVoiceCapture: (VoiceTarget) -> Unit) {
+fun MagpieAppScaffold(
+    onVoiceCapture: (VoiceTarget) -> Unit,
+    onOpenFix: (DiagnosticFix) -> Unit,
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -59,6 +64,7 @@ fun MagpieAppScaffold(onVoiceCapture: (VoiceTarget) -> Unit) {
             composable(MagpieDestination.Meds.route) { MedsScreen() }
             // Экран таблеток голосового ввода не имеет: курс заводится
             // один раз руками, диктовать там нечего.
+            composable(MagpieDestination.Settings.route) { SettingsScreen(onOpenFix = onOpenFix) }
         }
     }
 }
