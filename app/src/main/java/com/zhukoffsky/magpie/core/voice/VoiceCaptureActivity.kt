@@ -13,7 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+import com.zhukoffsky.magpie.core.ui.MagpieRoot
 import java.util.Locale
 
 /**
@@ -62,7 +62,7 @@ class VoiceCaptureActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MagpieTheme {
+            MagpieRoot {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
 
                 LaunchedEffect(state) {

@@ -11,6 +11,9 @@ import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.core.llm.LlmPreferences
+import com.zhukoffsky.magpie.core.settings.AppLanguage
+import com.zhukoffsky.magpie.core.settings.AppearancePreferences
+import com.zhukoffsky.magpie.core.settings.ThemeMode
 import com.zhukoffsky.magpie.core.sync.AuthorizationResult
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
 import com.zhukoffsky.magpie.core.sync.SyncSettings
@@ -34,7 +37,28 @@ class SettingsViewModel(
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
     private val llmPreferences: LlmPreferences,
+    private val appearance: AppearancePreferences,
 ) : ViewModel() {
+
+    val themeMode: StateFlow<ThemeMode> = appearance.themeMode.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = ThemeMode.SYSTEM,
+    )
+
+    val language: StateFlow<AppLanguage> = appearance.language.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = AppLanguage.SYSTEM,
+    )
+
+    fun onThemeModeSelected(mode: ThemeMode) {
+        viewModelScope.launch { appearance.setThemeMode(mode) }
+    }
+
+    fun onLanguageSelected(language: AppLanguage) {
+        viewModelScope.launch { appearance.setLanguage(language) }
+    }
 
     /**
      * Только признак наличия ключа. Сам ключ обратно в интерфейс не
@@ -109,14 +133,19 @@ class SettingsViewModel(
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val container =
-                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
+                val container = app.container
                 SettingsViewModel(
                     inspector = container.diagnosticsInspector,
                     testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,
                     llmPreferences = container.llmPreferences,
+                    // Мимо AppContainer намеренно: контейнер сейчас правится
+                    // под смену LLM-провайдера, и трогать его — значит тащить
+                    // чужую незаконченную работу в свой коммит. DataStore
+                    // всё равно один на процесс, дублирования не возникает.
+                    appearance = AppearancePreferences(app),
                 )
             }
         }

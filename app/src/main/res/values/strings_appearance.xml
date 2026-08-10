@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Внешний вид вынесен в отдельный файл, а не дописан в strings.xml: так проще
+  править тему и язык, не задевая строки остальных разделов. Android сливает
+  все файлы в values/ в один набор ресурсов.
+-->
+<resources>
+    <string name="appearance_title">Appearance</string>
+
+    <string name="appearance_theme">Theme</string>
+    <string name="appearance_theme_system">System</string>
+    <string name="appearance_theme_light">Light</string>
+    <string name="appearance_theme_dark">Dark</string>
+
+    <string name="appearance_language">Language</string>
+    <string name="appearance_language_system">System</string>
+    <string name="appearance_language_ru">Русский</string>
+    <string name="appearance_language_en">English</string>
+
+    
+    <string name="appearance_language_note">Applies to app screens. Notifications follow the system language — change it in Android settings, App language.</string>
+</resources>

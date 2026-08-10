@@ -38,7 +38,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.settings.AppLanguage
+import com.zhukoffsky.magpie.core.settings.ThemeMode
+import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.appLocale
+import com.zhukoffsky.magpie.core.ui.theme.MagpieMotion
+import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
+import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
 import com.zhukoffsky.magpie.core.sync.SyncSettings
@@ -55,6 +71,8 @@ fun SettingsScreen(
     val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
     val consentRequest by viewModel.consentRequest.collectAsStateWithLifecycle()
     val hasApiKey by viewModel.hasApiKey.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val language by viewModel.language.collectAsStateWithLifecycle()
 
     // Пользователь уходит в системные настройки и возвращается — состояние
     // надо перечитать, иначе экран будет показывать вчерашнюю правду.
@@ -76,6 +94,13 @@ fun SettingsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        AppearanceCard(
+            themeMode = themeMode,
+            language = language,
+            onThemeModeSelected = viewModel::onThemeModeSelected,
+            onLanguageSelected = viewModel::onLanguageSelected,
+        )
+
         GoogleSyncCard(
             settings = syncSettings,
             onConnect = viewModel::onConnectGoogle,
@@ -134,6 +159,137 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * Тема и язык. Обе настройки по умолчанию следуют системе — приложение не
+ * должно навязывать своё, пока его об этом не попросили.
+ */
+@Composable
+private fun AppearanceCard(
+    themeMode: ThemeMode,
+    language: AppLanguage,
+    onThemeModeSelected: (ThemeMode) -> Unit,
+    onLanguageSelected: (AppLanguage) -> Unit,
+) {
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(MagpieRadius.lg),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = stringResource(R.string.appearance_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MagpieTheme.colors.ink,
+            )
+
+            Text(
+                text = stringResource(R.string.appearance_theme),
+                style = MaterialTheme.typography.labelMedium,
+                color = MagpieTheme.colors.ink2,
+                modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
+            )
+            SegmentedChoice(
+                options = ThemeMode.entries,
+                selected = themeMode,
+                label = { mode ->
+                    stringResource(
+                        when (mode) {
+                            ThemeMode.SYSTEM -> R.string.appearance_theme_system
+                            ThemeMode.LIGHT -> R.string.appearance_theme_light
+                            ThemeMode.DARK -> R.string.appearance_theme_dark
+                        },
+                    )
+                },
+                onSelect = onThemeModeSelected,
+            )
+
+            Text(
+                text = stringResource(R.string.appearance_language),
+                style = MaterialTheme.typography.labelMedium,
+                color = MagpieTheme.colors.ink2,
+                modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+            )
+            SegmentedChoice(
+                options = AppLanguage.entries,
+                selected = language,
+                label = { value ->
+                    stringResource(
+                        when (value) {
+                            AppLanguage.SYSTEM -> R.string.appearance_language_system
+                            AppLanguage.RUSSIAN -> R.string.appearance_language_ru
+                            AppLanguage.ENGLISH -> R.string.appearance_language_en
+                        },
+                    )
+                },
+                onSelect = onLanguageSelected,
+            )
+
+            // Оговорка нужна на всех версиях: подмена конфигурации не
+            // достаёт до уведомлений ни на одной из них.
+            Text(
+                text = stringResource(R.string.appearance_language_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MagpieTheme.colors.ink2,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+    }
+}
+
+/** Ряд взаимоисключающих вариантов: выбранный залит акцентом. */
+@Composable
+private fun <T> SegmentedChoice(
+    options: List<T>,
+    selected: T,
+    label: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            val background by animateColorAsState(
+                targetValue = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MagpieTheme.colors.glass
+                },
+                animationSpec = MagpieMotion.snappy(),
+                label = "segmentBackground",
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(MagpieRadius.sm))
+                    .background(background)
+                    .border(
+                        BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
+                        RoundedCornerShape(MagpieRadius.sm),
+                    )
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(option) },
+                    )
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label(option),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MagpieTheme.colors.ink
+                    },
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun GoogleSyncCard(
     settings: SyncSettings,
@@ -141,8 +297,11 @@ private fun GoogleSyncCard(
     onSyncNow: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
-    val formatter = remember {
-        DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault())
+    // Локаль читается снаружи remember и служит его ключом: при смене языка
+    // форматтер надо пересоздать, иначе дата останется на прежнем языке.
+    val locale = appLocale()
+    val formatter = remember(locale) {
+        DateTimeFormatter.ofPattern("d MMM, HH:mm", locale).withZone(ZoneId.systemDefault())
     }
 
     Column(modifier = Modifier.padding(16.dp)) {

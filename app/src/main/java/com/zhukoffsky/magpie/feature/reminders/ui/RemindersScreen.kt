@@ -45,6 +45,7 @@ import com.zhukoffsky.magpie.core.ui.GlassSurface
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
 import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
+import com.zhukoffsky.magpie.core.ui.appLocale
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -261,10 +262,10 @@ private fun EditReminderDialog(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showDatePicker = true }) {
-                        Text(moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())))
+                        Text(moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", appLocale())))
                     }
                     TextButton(onClick = { showTimePicker = true }) {
-                        Text(moment.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())))
+                        Text(moment.format(DateTimeFormatter.ofPattern("HH:mm", appLocale())))
                     }
                 }
                 if (reminder.repeat != null) {

@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.appLocale
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -167,7 +168,7 @@ private fun CourseForm(
             Text(
                 stringResource(
                     R.string.med_start_date_value,
-                    startDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())),
+                    startDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", appLocale())),
                 ),
             )
         }
@@ -337,8 +338,9 @@ private fun TodayCard(
 
 @Composable
 private fun HistoryRow(day: DoseDay, index: Int, onTakenOn: (LocalDate) -> Unit) {
-    val dateFormatter = remember {
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
+    val locale = appLocale()
+    val dateFormatter = remember(locale) {
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     }
 
     GlassSurface(
