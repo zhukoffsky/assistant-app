@@ -88,6 +88,29 @@ class MedRepositoryTest {
     }
 
     @Test
+    fun `an alarm for a dose already taken does not ask for it again`() = runTest {
+        repository.onAlarm(scheduledAt = null)
+        repository.markTaken(at(day = 5))
+
+        // Отложенный будильник переживает отметку «принял»: он поставлен на
+        // своё время и никем не снимается. Сработав, он не должен требовать
+        // принять дозу, которая уже принята.
+        val result = repository.onAlarm(at(day = 5))
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `an alarm for a dose already taken still arms the next day`() = runTest {
+        repository.onAlarm(scheduledAt = null)
+        repository.markTaken(at(day = 5))
+
+        repository.onAlarm(at(day = 5))
+
+        assertEquals(at(day = 6), scheduler.daily)
+    }
+
+    @Test
     fun `marking taken records the time`() = runTest {
         repository.onAlarm(scheduledAt = null)
 
