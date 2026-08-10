@@ -26,4 +26,7 @@
     <string name="voice_close">Close</string>
     <string name="voice_error_nothing_recognized">Nothing was recognised. Speech recognition needs an internet connection.</string>
     <string name="voice_error_no_recognizer">This device has no speech recognition app.</string>
+
+    <string name="widget_shopping_description">Shopping list with a dictate button</string>
+    <string name="widget_shopping_empty">Nothing to buy</string>
 </resources>

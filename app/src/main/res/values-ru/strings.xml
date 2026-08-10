@@ -26,4 +26,7 @@
     <string name="voice_close">Закрыть</string>
     <string name="voice_error_nothing_recognized">Ничего не распознано. Для распознавания речи нужен интернет.</string>
     <string name="voice_error_no_recognizer">На устройстве нет приложения для распознавания речи.</string>
+
+    <string name="widget_shopping_description">Список покупок с кнопкой диктовки</string>
+    <string name="widget_shopping_empty">Покупать нечего</string>
 </resources>
