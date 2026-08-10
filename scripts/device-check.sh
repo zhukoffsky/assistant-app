@@ -22,7 +22,27 @@ log() { printf '\n===== %s =====\n' "$*" >>"$REPORT"; }
 run() { printf '$ %s\n' "$*" >>"$REPORT"; "$@" >>"$REPORT" 2>&1; }
 pause() { printf '\n>>> %s\n    Сделай это на телефоне и нажми Enter... ' "$*"; read -r _; }
 
-command -v adb >/dev/null || { echo "adb не найден в PATH"; exit 1; }
+# adb ставится вместе с Android Studio и в PATH сам не попадает: студия
+# зовёт его по полному пути. Ищем в стандартных местах, прежде чем сдаваться.
+if ! command -v adb >/dev/null; then
+    for candidate in \
+        "${ANDROID_HOME:-}/platform-tools" \
+        "${ANDROID_SDK_ROOT:-}/platform-tools" \
+        "$HOME/Library/Android/sdk/platform-tools" \
+        "$HOME/Android/Sdk/platform-tools"
+    do
+        if [ -x "$candidate/adb" ]; then
+            PATH="$candidate:$PATH"
+            break
+        fi
+    done
+fi
+
+command -v adb >/dev/null || {
+    echo "adb не найден ни в PATH, ни в стандартных каталогах Android SDK."
+    echo "Укажи путь вручную: export PATH=\"\$HOME/Library/Android/sdk/platform-tools:\$PATH\""
+    exit 1
+}
 
 : >"$REPORT"
 log "device"
