@@ -7,6 +7,15 @@
     <string name="nav_meds">Таблетки</string>
     <string name="nav_settings">Настройки</string>
 
+    <string name="voice_parsing">Разбираю время…</string>
+
+    <string name="llm_title">Умный разбор фраз</string>
+    <string name="llm_explanation">Обычные формулировки правила разбирают мгновенно и без сети. Если добавить ключ Anthropic, всё, что правила не осилили, уйдёт в Claude Haiku. Ключ хранится только на этом устройстве.</string>
+    <string name="llm_key_hint">Ключ API Anthropic</string>
+    <string name="llm_key_save">Сохранить ключ</string>
+    <string name="llm_key_saved">Ключ сохранён</string>
+    <string name="llm_key_clear">Удалить</string>
+
     <string name="sync_title">Google Tasks</string>
     <string name="sync_one_way_note">Только в одну сторону: напоминания выгружаются в Google. Изменения, сделанные там, обратно не читаются.</string>
     <string name="sync_connect">Подключить Google Tasks</string>

@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,15 +20,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +54,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
     val consentRequest by viewModel.consentRequest.collectAsStateWithLifecycle()
+    val hasApiKey by viewModel.hasApiKey.collectAsStateWithLifecycle()
 
     // Пользователь уходит в системные настройки и возвращается — состояние
     // надо перечитать, иначе экран будет показывать вчерашнюю правду.
@@ -74,6 +81,14 @@ fun SettingsScreen(
             onConnect = viewModel::onConnectGoogle,
             onSyncNow = viewModel::onSyncNow,
             onDisconnect = viewModel::onDisconnectGoogle,
+        )
+
+        HorizontalDivider()
+
+        ApiKeyCard(
+            hasApiKey = hasApiKey,
+            onSave = viewModel::onApiKeyEntered,
+            onClear = viewModel::onApiKeyCleared,
         )
 
         HorizontalDivider()
@@ -173,6 +188,65 @@ private fun GoogleSyncCard(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onSyncNow) { Text(stringResource(R.string.sync_now)) }
             TextButton(onClick = onDisconnect) { Text(stringResource(R.string.sync_disconnect)) }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeyCard(
+    hasApiKey: Boolean,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            text = stringResource(R.string.llm_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.llm_explanation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+
+        if (hasApiKey) {
+            Row(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.llm_key_saved),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onClear) { Text(stringResource(R.string.llm_key_clear)) }
+            }
+            return@Column
+        }
+
+        OutlinedTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            label = { Text(stringResource(R.string.llm_key_hint)) },
+            singleLine = true,
+            // Ключ не показывается даже при вводе и не попадает в
+            // автозаполнение и подсказки клавиатуры.
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        )
+        TextButton(
+            onClick = {
+                onSave(draft)
+                draft = ""
+            },
+        ) {
+            Text(stringResource(R.string.llm_key_save))
         }
     }
 }

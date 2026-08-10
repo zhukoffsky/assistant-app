@@ -8,6 +8,14 @@ data class ParsedReminder(
     val title: String,
     val dueAt: ZonedDateTime,
     val repeat: RepeatRule?,
+    /**
+     * Нашлось ли во фразе хоть что-то про время.
+     *
+     * Правила всегда возвращают результат — при неудаче это вся фраза
+     * целиком и время по умолчанию. Без этого признака отличить разбор от
+     * заглушки невозможно, а именно по нему решается, звать ли LLM.
+     */
+    val isConfident: Boolean = true,
 )
 
 /**
@@ -99,6 +107,11 @@ object ReminderPhraseParser {
             title = title.ifEmpty { phrase.trim() },
             dueAt = dueAt,
             repeat = repeat,
+            isConfident = repeat != null ||
+                offset != null ||
+                dayShift != null ||
+                weekday != null ||
+                time != null,
         )
     }
 

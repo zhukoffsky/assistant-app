@@ -7,7 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
-import com.zhukoffsky.magpie.feature.reminders.domain.ReminderPhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingPhraseParser
@@ -31,6 +31,9 @@ sealed interface VoiceCaptureUiState {
     /** Открыт системный диалог распознавания, своего интерфейса не показываем. */
     data object Listening : VoiceCaptureUiState
 
+    /** Фраза распознана, идёт разбор. Может занять секунду-две, если зовём LLM. */
+    data object Parsing : VoiceCaptureUiState
+
     /** Распознан список покупок; ждём подтверждения и правок. */
     data class ConfirmingItems(val items: List<String>) : VoiceCaptureUiState
 
@@ -51,6 +54,7 @@ class VoiceCaptureViewModel(
     private val target: VoiceTarget,
     private val shoppingRepository: ShoppingRepository,
     private val reminderRepository: ReminderRepository,
+    private val parser: PhraseParser,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -74,23 +78,34 @@ class VoiceCaptureViewModel(
 
     /** @param spoken распознанная фраза; null — отмена, ошибка или тишина. */
     fun onRecognitionResult(spoken: String?) {
-        _uiState.value = when (target) {
+        when (target) {
             VoiceTarget.SHOPPING -> {
                 val items = spoken?.let(ShoppingPhraseParser::parse).orEmpty()
-                if (items.isEmpty()) failure() else VoiceCaptureUiState.ConfirmingItems(items)
+                _uiState.value =
+                    if (items.isEmpty()) failure() else VoiceCaptureUiState.ConfirmingItems(items)
             }
 
             VoiceTarget.REMINDER -> {
                 val phrase = spoken?.trim().orEmpty()
                 if (phrase.isEmpty()) {
-                    failure()
-                } else {
-                    val parsed = ReminderPhraseParser.parse(phrase, ZonedDateTime.now(clock))
-                    VoiceCaptureUiState.ConfirmingReminder(
-                        title = parsed.title,
-                        dueAt = parsed.dueAt,
-                        repeat = parsed.repeat,
-                    )
+                    _uiState.value = failure()
+                    return
+                }
+
+                // Разбор стал асинхронным: правила отвечают мгновенно, но
+                // при откате на LLM это сетевой вызов.
+                _uiState.value = VoiceCaptureUiState.Parsing
+                viewModelScope.launch {
+                    val parsed = parser.parse(phrase, ZonedDateTime.now(clock))
+                    _uiState.value = if (parsed == null) {
+                        failure()
+                    } else {
+                        VoiceCaptureUiState.ConfirmingReminder(
+                            title = parsed.title,
+                            dueAt = parsed.dueAt,
+                            repeat = parsed.repeat,
+                        )
+                    }
                 }
             }
         }
@@ -165,6 +180,7 @@ class VoiceCaptureViewModel(
                     target = target,
                     shoppingRepository = container.shoppingRepository,
                     reminderRepository = container.reminderRepository,
+                    parser = container.phraseParser,
                 )
             }
         }

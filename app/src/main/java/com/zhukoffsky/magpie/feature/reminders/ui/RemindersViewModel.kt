@@ -8,7 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
-import com.zhukoffsky.magpie.feature.reminders.domain.ReminderPhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +27,7 @@ data class RemindersUiState(
 
 class RemindersViewModel(
     private val repository: ReminderRepository,
+    private val parser: PhraseParser,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -53,8 +54,8 @@ class RemindersViewModel(
         if (phrase.isEmpty()) return
         input.value = ""
 
-        val parsed = ReminderPhraseParser.parse(phrase, ZonedDateTime.now(clock))
         viewModelScope.launch {
+            val parsed = parser.parse(phrase, ZonedDateTime.now(clock)) ?: return@launch
             repository.add(
                 title = parsed.title,
                 dueAt = parsed.dueAt.toInstant(),
@@ -76,8 +77,9 @@ class RemindersViewModel(
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
-                RemindersViewModel(app.container.reminderRepository)
+                val container =
+                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
+                RemindersViewModel(container.reminderRepository, container.phraseParser)
             }
         }
     }

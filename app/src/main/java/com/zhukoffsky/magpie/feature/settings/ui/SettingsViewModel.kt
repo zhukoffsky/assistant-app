@@ -10,6 +10,7 @@ import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
+import com.zhukoffsky.magpie.core.llm.LlmPreferences
 import com.zhukoffsky.magpie.core.sync.AuthorizationResult
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
 import com.zhukoffsky.magpie.core.sync.SyncSettings
@@ -32,7 +33,26 @@ class SettingsViewModel(
     private val testAlarmScheduler: TestAlarmScheduler,
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
+    private val llmPreferences: LlmPreferences,
 ) : ViewModel() {
+
+    /**
+     * Только признак наличия ключа. Сам ключ обратно в интерфейс не
+     * поднимается: показывать его на экране незачем.
+     */
+    val hasApiKey: StateFlow<Boolean> = llmPreferences.hasApiKey.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = false,
+    )
+
+    fun onApiKeyEntered(key: String) {
+        viewModelScope.launch { llmPreferences.setApiKey(key) }
+    }
+
+    fun onApiKeyCleared() {
+        viewModelScope.launch { llmPreferences.clear() }
+    }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -96,6 +116,7 @@ class SettingsViewModel(
                     testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,
+                    llmPreferences = container.llmPreferences,
                 )
             }
         }

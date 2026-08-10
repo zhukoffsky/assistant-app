@@ -4,6 +4,8 @@ import com.zhukoffsky.magpie.core.data.db.FakeReminderDao
 import com.zhukoffsky.magpie.core.data.db.FakeShoppingDao
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
+import com.zhukoffsky.magpie.feature.reminders.domain.HybridPhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.RuleBasedPhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,7 @@ class VoiceCaptureViewModelTest {
         target = target,
         shoppingRepository = ShoppingRepository(shoppingDao, clock),
         reminderRepository = ReminderRepository(reminderDao, NoopScheduler, clock),
+        parser = HybridPhraseParser(rules = RuleBasedPhraseParser(), llm = null),
         clock = clock,
     )
 

@@ -6,6 +6,12 @@ import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
+import com.zhukoffsky.magpie.core.llm.AnthropicApi
+import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
+import com.zhukoffsky.magpie.core.llm.LlmPreferences
+import com.zhukoffsky.magpie.feature.reminders.domain.HybridPhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
+import com.zhukoffsky.magpie.feature.reminders.domain.RuleBasedPhraseParser
 import com.zhukoffsky.magpie.core.sync.GoogleAuthorization
 import com.zhukoffsky.magpie.core.sync.GoogleTasksApi
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
@@ -50,14 +56,30 @@ class AppContainer(context: Context) {
     val syncPreferences by lazy { SyncPreferences(appContext) }
     val syncTrigger: SyncTrigger by lazy { WorkManagerSyncTrigger(appContext) }
 
-    private val googleTasksApi: GoogleTasksApi by lazy {
-        val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { ignoreUnknownKeys = true }
 
-        Retrofit.Builder()
-            .baseUrl(GoogleTasksApi.BASE_URL)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-            .build()
-            .create(GoogleTasksApi::class.java)
+    private inline fun <reified T> retrofit(baseUrl: String): T = Retrofit.Builder()
+        .baseUrl(baseUrl)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create(T::class.java)
+
+    private val googleTasksApi: GoogleTasksApi by lazy { retrofit(GoogleTasksApi.BASE_URL) }
+
+    val llmPreferences by lazy { LlmPreferences(appContext) }
+
+    /**
+     * Сначала правила, при неудаче — LLM. Обе реализации за общим
+     * интерфейсом и взаимозаменяемы.
+     */
+    val phraseParser: PhraseParser by lazy {
+        HybridPhraseParser(
+            rules = RuleBasedPhraseParser(),
+            llm = LlmPhraseParser(
+                api = retrofit(AnthropicApi.BASE_URL),
+                apiKey = { llmPreferences.apiKey() },
+            ),
+        )
     }
 
     val remindersSyncer by lazy {
