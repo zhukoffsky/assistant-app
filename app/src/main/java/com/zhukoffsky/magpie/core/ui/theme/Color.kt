@@ -69,9 +69,9 @@ internal val LightMagpieColors = MagpieColors(
     glass = Color.White.copy(alpha = 0.62f),
     glassOpaque = Color.White.copy(alpha = 0.86f),
     glassBorder = Color.White.copy(alpha = 0.85f),
-    meshTopLeft = Color(0xFFFFC9A8),
-    meshTopRight = Color(0xFFFFB0AC),
-    meshBottom = Color(0xFFFFE1AE),
+    meshTopLeft = Color(0xFFFFC9A8).copy(alpha = 0.70f),
+    meshTopRight = Color(0xFFFFB0AC).copy(alpha = 0.62f),
+    meshBottom = Color(0xFFFFE1AE).copy(alpha = 0.75f),
     background = LightBg,
 )
 
@@ -84,9 +84,12 @@ internal val DarkMagpieColors = MagpieColors(
     glass = Color.White.copy(alpha = 0.085f),
     glassOpaque = Color.White.copy(alpha = 0.13f),
     glassBorder = Color.White.copy(alpha = 0.15f),
-    meshTopLeft = Color(0xFFFF6B35).copy(alpha = 0.34f),
-    meshTopRight = Color(0xFFB23A1A).copy(alpha = 0.36f),
-    meshBottom = Color(0xFF7A2F12).copy(alpha = 0.44f),
+    // Заметно слабее, чем в HTML-макете: там пятна лежат на маленькой карточке
+    // предпросмотра, а на экране телефона та же альфа даёт сплошную ржавчину
+    // вместо свечения по углам.
+    meshTopLeft = Color(0xFFFF6B35).copy(alpha = 0.15f),
+    meshTopRight = Color(0xFFB23A1A).copy(alpha = 0.14f),
+    meshBottom = Color(0xFF7A2F12).copy(alpha = 0.20f),
     background = DarkBg,
 )
 

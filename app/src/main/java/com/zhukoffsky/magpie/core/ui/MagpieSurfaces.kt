@@ -45,7 +45,15 @@ fun Modifier.magpieMesh(colors: MagpieColors, phase: Float = 0f): Modifier = dra
 
     val w = size.width
     val h = size.height
-    val far = maxOf(w, h)
+
+    /*
+     * Радиус считается от ШИРИНЫ, а не от большей стороны. В макете пятна
+     * эллиптические и меряются по каждой оси отдельно; `radialGradient` умеет
+     * только круг, и если взять высоту телефона (2400 против 1080), круги
+     * выходят вдвое больше нужного и заливают экран сплошным цветом вместо
+     * свечения по углам.
+     */
+    val unit = minOf(w, h)
 
     // Пятна смещаются на считаные проценты — движение должно ощущаться
     // как дыхание, а не как анимация.
@@ -54,22 +62,22 @@ fun Modifier.magpieMesh(colors: MagpieColors, phase: Float = 0f): Modifier = dra
     drawRect(
         Brush.radialGradient(
             colors = listOf(colors.meshTopLeft, Color.Transparent),
-            center = Offset(w * 0.10f, h * (0.06f + drift)),
-            radius = far * 0.62f,
+            center = Offset(w * 0.06f, h * (0.04f + drift)),
+            radius = unit * 0.95f,
         ),
     )
     drawRect(
         Brush.radialGradient(
             colors = listOf(colors.meshTopRight, Color.Transparent),
-            center = Offset(w * 0.92f, h * (0.10f - drift)),
-            radius = far * 0.58f,
+            center = Offset(w * 0.98f, h * (0.09f - drift)),
+            radius = unit * 0.85f,
         ),
     )
     drawRect(
         Brush.radialGradient(
             colors = listOf(colors.meshBottom, Color.Transparent),
-            center = Offset(w * 0.52f, h * (1.04f + drift)),
-            radius = far * 0.76f,
+            center = Offset(w * 0.55f, h * (1.02f + drift)),
+            radius = unit * 1.05f,
         ),
     )
 }
