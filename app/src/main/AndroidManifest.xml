@@ -51,19 +51,57 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!--
           Отдельная задача и excludeFromRecents: быстрый ввод не должен
           оседать в списке недавних и мешать стеку главного экрана.
         -->
+        <!--
+          exported="true" нужен статическим шорткатам: лаунчер запускает их
+          от своего имени. Цена — любое приложение может открыть экран
+          диктовки. Ничего чувствительного он не показывает и ничего не
+          пишет без подтверждения, так что размен допустимый.
+        -->
         <activity
             android:name=".core.voice.VoiceCaptureActivity"
             android:excludeFromRecents="true"
-            android:exported="false"
+            android:exported="true"
             android:launchMode="singleTask"
             android:taskAffinity=""
-            android:theme="@style/Theme.Magpie.Transparent" />
+            android:theme="@style/Theme.Magpie.Transparent">
+            <intent-filter>
+                <action android:name="com.zhukoffsky.magpie.action.CAPTURE_SHOPPING" />
+                <action android:name="com.zhukoffsky.magpie.action.CAPTURE_REMINDER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".core.voice.tile.ReminderVoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="@string/tile_reminder"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".core.voice.tile.ShoppingVoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="@string/tile_shopping"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name=".feature.reminders.alarm.ReminderAlarmReceiver"
@@ -94,6 +132,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/shopping_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".feature.reminders.widget.ReminderVoiceWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/reminder_widget_info" />
         </receiver>
     </application>
 

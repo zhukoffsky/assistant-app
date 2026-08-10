@@ -30,9 +30,7 @@ import java.util.Locale
  */
 class VoiceCaptureActivity : ComponentActivity() {
 
-    private val target: VoiceTarget by lazy {
-        VoiceTarget.fromName(intent.getStringExtra(EXTRA_TARGET))
-    }
+    private val target: VoiceTarget by lazy { targetOf(intent) }
 
     private val viewModel: VoiceCaptureViewModel by viewModels {
         VoiceCaptureViewModel.factory(target)
@@ -45,6 +43,19 @@ class VoiceCaptureActivity : ComponentActivity() {
             ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             ?.firstOrNull()
         viewModel.onRecognitionResult(spoken.takeIf { result.resultCode == RESULT_OK })
+    }
+
+    /**
+     * Активность живёт в отдельной задаче с `singleTask`, поэтому вторая
+     * точка входа может попасть в уже открытый экран. Если цель другая —
+     * перезапускаемся: цикла не будет, у новой копии цель совпадёт.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (targetOf(intent) == target) return
+
+        finish()
+        startActivity(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,10 +106,14 @@ class VoiceCaptureActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val EXTRA_TARGET = "target"
-
         fun intent(context: Context, target: VoiceTarget): Intent =
             Intent(context, VoiceCaptureActivity::class.java)
-                .putExtra(EXTRA_TARGET, target.name)
+                .setAction(target.action)
+                .putExtra(VoiceTarget.EXTRA_TARGET, target.name)
+
+        private fun targetOf(intent: Intent): VoiceTarget =
+            VoiceTarget.fromAction(intent.action)
+                ?: VoiceTarget.fromName(intent.getStringExtra(VoiceTarget.EXTRA_TARGET))
+                ?: VoiceTarget.SHOPPING
     }
 }

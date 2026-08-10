@@ -38,4 +38,13 @@
 
     <string name="widget_shopping_description">Shopping list with a dictate button</string>
     <string name="widget_shopping_empty">Nothing to buy</string>
+    <string name="widget_reminder_description">Dictate a reminder</string>
+
+    <string name="tile_reminder">Dictate a reminder</string>
+    <string name="tile_shopping">Dictate a purchase</string>
+
+    <string name="shortcut_reminder_short">Reminder</string>
+    <string name="shortcut_reminder_long">Dictate a reminder</string>
+    <string name="shortcut_shopping_short">Purchase</string>
+    <string name="shortcut_shopping_long">Dictate a purchase</string>
 </resources>

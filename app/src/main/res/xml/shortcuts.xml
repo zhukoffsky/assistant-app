@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Статические шорткаты: долгий тап по иконке приложения. Цель различается
+  по action, а не по extra — так надёжнее при запуске из лаунчера.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_mic"
+        android:shortcutId="capture_reminder"
+        android:shortcutLongLabel="@string/shortcut_reminder_long"
+        android:shortcutShortLabel="@string/shortcut_reminder_short">
+        <intent
+            android:action="com.zhukoffsky.magpie.action.CAPTURE_REMINDER"
+            android:targetClass="com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity"
+            android:targetPackage="com.zhukoffsky.magpie" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_mic"
+        android:shortcutId="capture_shopping"
+        android:shortcutLongLabel="@string/shortcut_shopping_long"
+        android:shortcutShortLabel="@string/shortcut_shopping_short">
+        <intent
+            android:action="com.zhukoffsky.magpie.action.CAPTURE_SHOPPING"
+            android:targetClass="com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity"
+            android:targetPackage="com.zhukoffsky.magpie" />
+    </shortcut>
+
+</shortcuts>

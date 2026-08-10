@@ -38,4 +38,13 @@
 
     <string name="widget_shopping_description">Список покупок с кнопкой диктовки</string>
     <string name="widget_shopping_empty">Покупать нечего</string>
+    <string name="widget_reminder_description">Продиктовать напоминание</string>
+
+    <string name="tile_reminder">Напоминание</string>
+    <string name="tile_shopping">Покупка</string>
+
+    <string name="shortcut_reminder_short">Напоминание</string>
+    <string name="shortcut_reminder_long">Продиктовать напоминание</string>
+    <string name="shortcut_shopping_short">Покупка</string>
+    <string name="shortcut_shopping_long">Продиктовать покупку</string>
 </resources>
