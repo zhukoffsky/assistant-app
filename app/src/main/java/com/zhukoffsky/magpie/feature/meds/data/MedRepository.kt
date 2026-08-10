@@ -71,15 +71,23 @@ class MedRepository(
         )
     }
 
-    /** Ставит будильник на ближайший приём. Идемпотентно. */
-    suspend fun scheduleNext() {
+    /**
+     * Ставит будильник на ближайший приём. Идемпотентно.
+     *
+     * @param notBefore приём, который уже обработан. Отсчёт ведётся строго
+     * от него, а не от текущего времени: неточный будильник может сработать
+     * на несколько секунд раньше срока, и отсчёт «от сейчас» перевзвёл бы
+     * его на тот же момент — получился бы цикл мгновенных повторов.
+     */
+    suspend fun scheduleNext(notBefore: Instant? = null) {
         val course = dao.activeCourse()?.toDomain()
         if (course == null) {
             scheduler.cancelAll()
             return
         }
 
-        val next = DoseCycle.nextIntake(course, clock.instant().atZone(clock.zone))
+        val reference = maxOf(notBefore ?: Instant.MIN, clock.instant())
+        val next = DoseCycle.nextIntake(course, reference.atZone(clock.zone))
         scheduler.scheduleDaily(next.toInstant())
     }
 
@@ -111,7 +119,7 @@ class MedRepository(
                 dao.intakeAt(course.id, plannedAt)?.toDomain() ?: return null
             }
 
-        scheduleNext()
+        scheduleNext(notBefore = plannedAt)
         return course to intake
     }
 
