@@ -45,6 +45,20 @@ class ReminderRepository(
         return id
     }
 
+    /**
+     * Правка заголовка и времени вручную — единственный способ починить
+     * ошибку разбора фразы, кроме удаления и переделки.
+     */
+    suspend fun update(id: Long, title: String, dueAt: Instant?) {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return
+
+        dao.updateDetails(id, cleanTitle, dueAt, clock.instant())
+
+        if (dueAt != null) scheduler.schedule(id, dueAt) else scheduler.cancel(id)
+        markForUpload(id)
+    }
+
     suspend fun setDone(id: Long, isDone: Boolean) {
         dao.setDone(id, isDone, clock.instant())
         val reminder = dao.byId(id)?.toDomain() ?: return

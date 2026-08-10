@@ -34,6 +34,12 @@ class FakeReminderDao : ReminderDao {
         }
     }
 
+    override suspend fun updateDetails(id: Long, title: String, dueAt: Instant?, updatedAt: Instant) {
+        items.value = items.value.map {
+            if (it.id == id) it.copy(title = title, dueAt = dueAt, updatedAt = updatedAt) else it
+        }
+    }
+
     override suspend fun deleteById(id: Long) {
         items.value = items.value.filterNot { it.id == id }
     }

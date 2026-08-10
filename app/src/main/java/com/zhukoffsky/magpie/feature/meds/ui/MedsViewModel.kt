@@ -68,21 +68,40 @@ class MedsViewModel(
             initialValue = MedsUiState(),
         )
 
-    fun onSaveCourse(name: String, doses: String, time: String, startDate: String): Boolean {
+    fun onSaveCourse(
+        name: String,
+        doses: String,
+        timeOfDay: LocalTime,
+        startDate: LocalDate,
+    ): Boolean {
         val parsedDoses = parseDoses(doses) ?: return false
-        val parsedTime = parseTime(time) ?: return false
-        val parsedDate = parseDate(startDate) ?: return false
 
         viewModelScope.launch {
             repository.saveCourse(
                 id = uiState.value.course?.id ?: 0,
                 name = name,
                 dosesMg = parsedDoses,
-                timeOfDay = parsedTime,
-                startDate = parsedDate,
+                timeOfDay = timeOfDay,
+                startDate = startDate,
             )
         }
         return true
+    }
+
+    /**
+     * История в виде текста для отправки куда угодно — врачу в мессенджер,
+     * себе в заметки. Формат CSV, чтобы открывалось таблицей.
+     */
+    fun historyAsCsv(): String {
+        val state = uiState.value
+        val course = state.course ?: return ""
+
+        return buildString {
+            appendLine("date,dose_mg,status")
+            state.history.asReversed().forEach { day ->
+                appendLine("${day.date},${day.doseMg},${day.status.name.lowercase()}")
+            }
+        }
     }
 
     fun onTakenToday() {
@@ -132,13 +151,6 @@ class MedsViewModel(
 
             return values.takeIf { it.isNotEmpty() && it.all { dose -> dose > 0 } }
         }
-
-        fun parseTime(raw: String): LocalTime? = runCatching {
-            val (hour, minute) = raw.trim().split(":", ".").map { it.trim().toInt() }
-            LocalTime.of(hour, minute)
-        }.getOrNull()
-
-        fun parseDate(raw: String): LocalDate? = runCatching { LocalDate.parse(raw.trim()) }.getOrNull()
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

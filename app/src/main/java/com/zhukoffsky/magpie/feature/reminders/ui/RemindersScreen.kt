@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.feature.reminders.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -24,9 +26,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -38,8 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.DatePickerDialog
+import com.zhukoffsky.magpie.core.ui.TimePickerDialog
+import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
 import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun RemindersScreen(
@@ -47,6 +59,24 @@ fun RemindersScreen(
     viewModel: RemindersViewModel = viewModel(factory = RemindersViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf<Reminder?>(null) }
+
+    UndoDeleteEffect(
+        deleted = viewModel.undoDelete.collectAsStateWithLifecycle().value,
+        onUndo = viewModel::onUndoDelete,
+        onDismiss = viewModel::onUndoDismissed,
+    )
+
+    editing?.let { reminder ->
+        EditReminderDialog(
+            reminder = reminder,
+            onDismiss = { editing = null },
+            onConfirm = { title, dueAt ->
+                viewModel.onEdit(reminder, title, dueAt)
+                editing = null
+            },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         InputRow(
@@ -67,6 +97,7 @@ fun RemindersScreen(
                         reminder = reminder,
                         onDoneChange = { done -> viewModel.onDoneChange(reminder, done) },
                         onDelete = { viewModel.onDelete(reminder) },
+                        onEdit = { editing = reminder },
                     )
                 }
             }
@@ -115,6 +146,7 @@ private fun SwipeableRow(
     reminder: Reminder,
     onDoneChange: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -141,15 +173,20 @@ private fun SwipeableRow(
             }
         },
     ) {
-        ReminderRow(reminder = reminder, onDoneChange = onDoneChange)
+        ReminderRow(reminder = reminder, onDoneChange = onDoneChange, onEdit = onEdit)
     }
 }
 
 @Composable
-private fun ReminderRow(reminder: Reminder, onDoneChange: (Boolean) -> Unit) {
+private fun ReminderRow(
+    reminder: Reminder,
+    onDoneChange: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onEdit)
             .padding(end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -175,6 +212,88 @@ private fun ReminderRow(reminder: Reminder, onDoneChange: (Boolean) -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Правка напоминания.
+ *
+ * Разбор фразы ошибается, а без этого диалога единственным лекарством было
+ * удалить запись и надиктовать заново.
+ */
+@Composable
+private fun EditReminderDialog(
+    reminder: Reminder,
+    onDismiss: () -> Unit,
+    onConfirm: (title: String, dueAt: ZonedDateTime) -> Unit,
+) {
+    val zone = ZoneId.systemDefault()
+    var title by remember { mutableStateOf(reminder.title) }
+    var moment by remember {
+        mutableStateOf(reminder.dueAt?.atZone(zone) ?: ZonedDateTime.now(zone))
+    }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            initial = moment.toLocalDate(),
+            onDismiss = { showDatePicker = false },
+            onConfirm = { date ->
+                moment = moment.withYear(date.year).withDayOfYear(date.dayOfYear)
+                showDatePicker = false
+            },
+        )
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            initial = moment.toLocalTime(),
+            onDismiss = { showTimePicker = false },
+            onConfirm = { time ->
+                moment = moment.withHour(time.hour).withMinute(time.minute)
+                showTimePicker = false
+            },
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reminder_edit_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text(stringResource(R.string.reminder_edit_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showDatePicker = true }) {
+                        Text(moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())))
+                    }
+                    TextButton(onClick = { showTimePicker = true }) {
+                        Text(moment.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())))
+                    }
+                }
+                if (reminder.repeat != null) {
+                    Text(
+                        text = stringResource(R.string.reminder_edit_repeat_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(title, moment) }) {
+                Text(stringResource(R.string.picker_ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.picker_cancel)) }
+        },
+    )
 }
 
 @Composable

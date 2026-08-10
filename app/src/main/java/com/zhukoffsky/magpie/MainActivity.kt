@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
                         startActivity(VoiceCaptureActivity.intent(this, target))
                     },
                     onOpenFix = ::openFix,
+                    onShareText = ::shareText,
                 )
             }
         }
@@ -56,6 +57,17 @@ class MainActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /** Экспорт истории: отдаём текст системе, дальше пользователь решает сам. */
+    private fun shareText(text: String) {
+        if (text.isBlank()) return
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.med_export)))
     }
 
     private fun openFix(fix: DiagnosticFix) {

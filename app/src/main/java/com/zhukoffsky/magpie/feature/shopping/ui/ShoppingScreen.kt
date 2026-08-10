@@ -39,6 +39,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 
 @Composable
@@ -47,6 +48,12 @@ fun ShoppingScreen(
     viewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    UndoDeleteEffect(
+        deleted = viewModel.undoDelete.collectAsStateWithLifecycle().value,
+        onUndo = viewModel::onUndoDelete,
+        onDismiss = viewModel::onUndoDismissed,
+    )
 
     ShoppingScreenContent(
         state = state,

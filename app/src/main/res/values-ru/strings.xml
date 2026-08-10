@@ -48,10 +48,11 @@
     <string name="med_name_hint">Название лекарства</string>
     <string name="med_doses_hint">Цикл доз, мг</string>
     <string name="med_doses_help">Через запятую, повторяется по кругу: 100, 75</string>
-    <string name="med_time_hint">Время приёма</string>
-    <string name="med_start_date_hint">Дата начала</string>
+    <string name="med_time_value">Время приёма: %1$s</string>
+    <string name="med_start_date_value">Дата начала: %1$s</string>
+    <string name="med_export">Экспорт истории</string>
     <string name="med_start_date_help">Задаёт фазу цикла: первая доза приходится на этот день</string>
-    <string name="med_invalid_input">Проверь поля: дозы в мг через запятую, время в виде ЧЧ:ММ, дата в виде ГГГГ-ММ-ДД.</string>
+    <string name="med_invalid_input">Проверь цикл доз: целые числа миллиграммов через запятую.</string>
     <string name="med_save">Сохранить</string>
     <string name="med_today_dose">Сегодня %1$d мг</string>
     <string name="med_no_dose_today">Курс ещё не начался</string>
@@ -112,4 +113,12 @@
     <string name="shortcut_reminder_long">Продиктовать напоминание</string>
     <string name="shortcut_shopping_short">Покупка</string>
     <string name="shortcut_shopping_long">Продиктовать покупку</string>
+
+    <string name="undo_deleted">Удалено</string>
+    <string name="undo_action">Отменить</string>
+    <string name="picker_ok">Готово</string>
+    <string name="picker_cancel">Отмена</string>
+    <string name="reminder_edit_title">Правка напоминания</string>
+    <string name="reminder_edit_name">О чём напомнить</string>
+    <string name="reminder_edit_repeat_note">Правило повтора не меняется — переносится только ближайшее срабатывание.</string>
 </resources>

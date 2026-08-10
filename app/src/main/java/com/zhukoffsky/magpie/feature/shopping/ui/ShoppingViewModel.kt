@@ -11,6 +11,7 @@ import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -53,8 +54,29 @@ class ShoppingViewModel(private val repository: ShoppingRepository) : ViewModel(
         viewModelScope.launch { repository.setChecked(item.id, isChecked) }
     }
 
+    /**
+     * Смахнуть позицию легко случайно, поэтому удаление всегда предлагает
+     * отмену. Запись при этом удаляется сразу — «отложенное» удаление
+     * рассыпается, если приложение закроют до истечения таймера.
+     */
+    private val _undoDelete = MutableStateFlow<ShoppingItem?>(null)
+    val undoDelete: StateFlow<ShoppingItem?> = _undoDelete.asStateFlow()
+
     fun onDelete(item: ShoppingItem) {
-        viewModelScope.launch { repository.delete(item.id) }
+        viewModelScope.launch {
+            repository.delete(item.id)
+            _undoDelete.value = item
+        }
+    }
+
+    fun onUndoDelete() {
+        val item = _undoDelete.value ?: return
+        _undoDelete.value = null
+        viewModelScope.launch { repository.add(item.title) }
+    }
+
+    fun onUndoDismissed() {
+        _undoDelete.value = null
     }
 
     fun onClearChecked() {

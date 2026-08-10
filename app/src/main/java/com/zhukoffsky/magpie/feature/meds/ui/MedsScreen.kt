@@ -35,15 +35,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
+import com.zhukoffsky.magpie.core.ui.DatePickerDialog
+import com.zhukoffsky.magpie.core.ui.TimePickerDialog
 import com.zhukoffsky.magpie.feature.meds.domain.DoseDay
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
-fun MedsScreen(viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Factory)) {
+fun MedsScreen(
+    onShareText: (String) -> Unit,
+    viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Factory),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf(false) }
 
@@ -66,6 +72,7 @@ fun MedsScreen(viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Fact
             onTakenOn = viewModel::onTakenOn,
             onEdit = { editing = true },
             onDelete = viewModel::onDeleteCourse,
+            onExport = { onShareText(viewModel.historyAsCsv()) },
         )
     }
 }
@@ -73,17 +80,37 @@ fun MedsScreen(viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Fact
 @Composable
 private fun CourseForm(
     course: MedCourse?,
-    onSave: (name: String, doses: String, time: String, startDate: String) -> Boolean,
+    onSave: (name: String, doses: String, time: LocalTime, startDate: LocalDate) -> Boolean,
 ) {
     var name by remember { mutableStateOf(course?.name.orEmpty()) }
     var doses by remember { mutableStateOf(course?.dosesMg?.joinToString(", ").orEmpty()) }
-    var time by remember {
-        mutableStateOf(course?.timeOfDay?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "09:00")
-    }
-    var startDate by remember {
-        mutableStateOf(course?.startDate?.toString() ?: LocalDate.now().toString())
-    }
+    var time by remember { mutableStateOf(course?.timeOfDay ?: LocalTime.of(9, 0)) }
+    var startDate by remember { mutableStateOf(course?.startDate ?: LocalDate.now()) }
     var showError by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            initial = time,
+            onDismiss = { showTimePicker = false },
+            onConfirm = {
+                time = it
+                showTimePicker = false
+            },
+        )
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            initial = startDate,
+            onDismiss = { showDatePicker = false },
+            onConfirm = {
+                startDate = it
+                showDatePicker = false
+            },
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -112,20 +139,33 @@ private fun CourseForm(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
-            value = time,
-            onValueChange = { time = it },
-            label = { Text(stringResource(R.string.med_time_hint)) },
-            singleLine = true,
+        OutlinedButton(
+            onClick = { showTimePicker = true },
             modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = startDate,
-            onValueChange = { startDate = it },
-            label = { Text(stringResource(R.string.med_start_date_hint)) },
-            supportingText = { Text(stringResource(R.string.med_start_date_help)) },
-            singleLine = true,
+        ) {
+            Text(
+                stringResource(
+                    R.string.med_time_value,
+                    time.format(DateTimeFormatter.ofPattern("HH:mm")),
+                ),
+            )
+        }
+
+        OutlinedButton(
+            onClick = { showDatePicker = true },
             modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                stringResource(
+                    R.string.med_start_date_value,
+                    startDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())),
+                ),
+            )
+        }
+        Text(
+            text = stringResource(R.string.med_start_date_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         if (showError) {
@@ -153,6 +193,7 @@ private fun CourseContent(
     onTakenOn: (LocalDate) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
 ) {
     val course = state.course ?: return
 
@@ -171,6 +212,7 @@ private fun CourseContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TextButton(onClick = onEdit) { Text(stringResource(R.string.med_edit_course)) }
+            TextButton(onClick = onExport) { Text(stringResource(R.string.med_export)) }
             TextButton(onClick = onDelete) { Text(stringResource(R.string.med_delete_course)) }
         }
 

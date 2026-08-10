@@ -48,10 +48,11 @@
     <string name="med_name_hint">Medication name</string>
     <string name="med_doses_hint">Dose cycle, mg</string>
     <string name="med_doses_help">Comma separated, repeated in order: 100, 75</string>
-    <string name="med_time_hint">Time of day</string>
-    <string name="med_start_date_hint">Start date</string>
+    <string name="med_time_value">Time of day: %1$s</string>
+    <string name="med_start_date_value">Start date: %1$s</string>
+    <string name="med_export">Export history</string>
     <string name="med_start_date_help">Sets the phase of the cycle: the first dose falls on this day</string>
-    <string name="med_invalid_input">Check the fields: dose cycle in mg, time as HH:MM, date as YYYY-MM-DD.</string>
+    <string name="med_invalid_input">Check the dose cycle: whole milligram numbers separated by commas.</string>
     <string name="med_save">Save</string>
     <string name="med_today_dose">%1$d mg today</string>
     <string name="med_no_dose_today">The course has not started yet</string>
@@ -112,4 +113,12 @@
     <string name="shortcut_reminder_long">Dictate a reminder</string>
     <string name="shortcut_shopping_short">Purchase</string>
     <string name="shortcut_shopping_long">Dictate a purchase</string>
+
+    <string name="undo_deleted">Deleted</string>
+    <string name="undo_action">Undo</string>
+    <string name="picker_ok">Done</string>
+    <string name="picker_cancel">Cancel</string>
+    <string name="reminder_edit_title">Edit reminder</string>
+    <string name="reminder_edit_name">What to remind about</string>
+    <string name="reminder_edit_repeat_note">The repeat rule stays as it is; only this occurrence moves.</string>
 </resources>

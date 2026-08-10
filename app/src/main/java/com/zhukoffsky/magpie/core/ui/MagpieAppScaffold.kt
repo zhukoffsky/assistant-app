@@ -6,9 +6,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -28,12 +32,15 @@ import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 fun MagpieAppScaffold(
     onVoiceCapture: (VoiceTarget) -> Unit,
     onOpenFix: (DiagnosticFix) -> Unit,
+    onShareText: (String) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar {
                 MagpieDestination.entries.forEach { destination ->
@@ -48,23 +55,29 @@ fun MagpieAppScaffold(
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = MagpieDestination.START.route,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            composable(MagpieDestination.Shopping.route) {
-                ShoppingScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.SHOPPING) })
+        CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+            NavHost(
+                navController = navController,
+                startDestination = MagpieDestination.START.route,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                composable(MagpieDestination.Shopping.route) {
+                    ShoppingScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.SHOPPING) })
+                }
+                composable(MagpieDestination.Reminders.route) {
+                    RemindersScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.REMINDER) })
+                }
+                // Экран таблеток голосового ввода не имеет: курс заводится
+                // один раз руками, диктовать там нечего.
+                composable(MagpieDestination.Meds.route) {
+                    MedsScreen(onShareText = onShareText)
+                }
+                composable(MagpieDestination.Settings.route) {
+                    SettingsScreen(onOpenFix = onOpenFix)
+                }
             }
-            composable(MagpieDestination.Reminders.route) {
-                RemindersScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.REMINDER) })
-            }
-            composable(MagpieDestination.Meds.route) { MedsScreen() }
-            // Экран таблеток голосового ввода не имеет: курс заводится
-            // один раз руками, диктовать там нечего.
-            composable(MagpieDestination.Settings.route) { SettingsScreen(onOpenFix = onOpenFix) }
         }
     }
 }
