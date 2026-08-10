@@ -3,7 +3,9 @@
 /local.properties
 /.idea/
 .DS_Store
-/build
+# Без слеша в начале — иначе правило ловит только корневой build/, а вывод
+# сборки лежит в app/build/ и попадает в git status при каждой сборке.
+build/
 /captures
 .externalNativeBuild
 .cxx
