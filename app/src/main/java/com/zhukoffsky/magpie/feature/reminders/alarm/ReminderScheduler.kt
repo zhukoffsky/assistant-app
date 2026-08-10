@@ -22,7 +22,7 @@ class AlarmManagerReminderScheduler(private val context: Context) : ReminderSche
         get() = context.getSystemService(AlarmManager::class.java)
 
     override fun schedule(id: Long, at: Instant) {
-        val pendingIntent = alarmPendingIntent(id, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = createPendingIntent(id)
 
         // Точность здесь важнее экономии батареи, но пропуск дозы или
         // напоминания не критичен — поэтому setExactAndAllowWhileIdle, а не
@@ -46,7 +46,9 @@ class AlarmManagerReminderScheduler(private val context: Context) : ReminderSche
     }
 
     override fun cancel(id: Long) {
-        alarmPendingIntent(id, PendingIntent.FLAG_NO_CREATE)?.let { pendingIntent ->
+        // FLAG_NO_CREATE возвращает null, если такого будильника нет —
+        // отменять нечего.
+        existingPendingIntent(id)?.let { pendingIntent ->
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
         }
@@ -55,12 +57,23 @@ class AlarmManagerReminderScheduler(private val context: Context) : ReminderSche
     private fun canScheduleExact(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
-    private fun alarmPendingIntent(id: Long, flag: Int): PendingIntent? =
+    private fun createPendingIntent(id: Long): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             id.toInt(),
-            Intent(context, ReminderAlarmReceiver::class.java)
-                .putExtra(ReminderAlarmReceiver.EXTRA_REMINDER_ID, id),
-            flag or PendingIntent.FLAG_IMMUTABLE,
+            alarmIntent(id),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+
+    private fun existingPendingIntent(id: Long): PendingIntent? =
+        PendingIntent.getBroadcast(
+            context,
+            id.toInt(),
+            alarmIntent(id),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun alarmIntent(id: Long): Intent =
+        Intent(context, ReminderAlarmReceiver::class.java)
+            .putExtra(ReminderAlarmReceiver.EXTRA_REMINDER_ID, id)
 }
