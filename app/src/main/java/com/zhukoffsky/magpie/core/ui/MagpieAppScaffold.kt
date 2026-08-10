@@ -57,6 +57,8 @@ fun MagpieAppScaffold(onVoiceCapture: (VoiceTarget) -> Unit) {
                 RemindersScreen(onVoiceInput = { onVoiceCapture(VoiceTarget.REMINDER) })
             }
             composable(MagpieDestination.Meds.route) { MedsScreen() }
+            // Экран таблеток голосового ввода не имеет: курс заводится
+            // один раз руками, диктовать там нечего.
         }
     }
 }

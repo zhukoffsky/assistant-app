@@ -112,6 +112,14 @@
             android:exported="false" />
 
         <receiver
+            android:name=".feature.meds.alarm.MedAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".feature.meds.alarm.MedActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".feature.reminders.alarm.BootCompletedReceiver"
             android:enabled="true"
             android:exported="true"

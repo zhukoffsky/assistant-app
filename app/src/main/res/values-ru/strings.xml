@@ -6,7 +6,34 @@
     <string name="nav_reminders">Напоминания</string>
     <string name="nav_meds">Таблетки</string>
 
-    <string name="placeholder_meds">Курс с чередованием доз и история приёмов. Появятся на этапе 6.</string>
+    <string name="med_setup_title">Курс приёма</string>
+    <string name="med_name_hint">Название лекарства</string>
+    <string name="med_doses_hint">Цикл доз, мг</string>
+    <string name="med_doses_help">Через запятую, повторяется по кругу: 100, 75</string>
+    <string name="med_time_hint">Время приёма</string>
+    <string name="med_start_date_hint">Дата начала</string>
+    <string name="med_start_date_help">Задаёт фазу цикла: первая доза приходится на этот день</string>
+    <string name="med_invalid_input">Проверь поля: дозы в мг через запятую, время в виде ЧЧ:ММ, дата в виде ГГГГ-ММ-ДД.</string>
+    <string name="med_save">Сохранить</string>
+    <string name="med_today_dose">Сегодня %1$d мг</string>
+    <string name="med_no_dose_today">Курс ещё не начался</string>
+    <string name="med_unit_mg">мг</string>
+    <string name="med_status_pending">ещё не принято</string>
+    <string name="med_status_taken">принято</string>
+    <string name="med_status_skipped">пропущено</string>
+    <string name="med_status_snoozed">отложено</string>
+    <string name="med_snooze">Отложить на</string>
+    <string name="med_snooze_minutes">%1$d мин</string>
+    <string name="med_history_title">История</string>
+    <string name="med_mark_taken">Принял</string>
+    <string name="med_edit_course">Изменить</string>
+    <string name="med_delete_course">Удалить курс</string>
+    <string name="med_action_taken">Принял</string>
+    <string name="med_action_snooze_15">+15 мин</string>
+    <string name="med_action_snooze_60">+60 мин</string>
+    <string name="med_notification_title">Пора принять: %1$s</string>
+    <string name="med_notification_dose">%1$d мг</string>
+    <string name="channel_meds">Приём лекарств</string>
 
     <string name="reminders_input_hint">О чём и когда напомнить</string>
     <string name="reminders_empty">Напоминаний нет.\nПопробуй: «завтра в 9 позвонить в поликлинику».</string>

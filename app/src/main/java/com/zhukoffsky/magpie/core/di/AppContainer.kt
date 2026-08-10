@@ -3,6 +3,9 @@ package com.zhukoffsky.magpie.core.di
 import android.content.Context
 import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
+import com.zhukoffsky.magpie.feature.meds.alarm.AlarmManagerMedScheduler
+import com.zhukoffsky.magpie.feature.meds.alarm.MedScheduler
+import com.zhukoffsky.magpie.feature.meds.data.MedRepository
 import com.zhukoffsky.magpie.feature.reminders.alarm.AlarmManagerReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
@@ -34,4 +37,7 @@ class AppContainer(context: Context) {
 
     val reminderScheduler: ReminderScheduler by lazy { AlarmManagerReminderScheduler(appContext) }
     val reminderRepository by lazy { ReminderRepository(reminderDao, reminderScheduler) }
+
+    val medScheduler: MedScheduler by lazy { AlarmManagerMedScheduler(appContext) }
+    val medRepository by lazy { MedRepository(medDao, medScheduler) }
 }

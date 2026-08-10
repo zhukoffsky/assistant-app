@@ -23,7 +23,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             try {
-                (appContext as MagpieApp).container.reminderRepository.rescheduleAll()
+                val container = (appContext as MagpieApp).container
+                container.reminderRepository.rescheduleAll()
+                container.medRepository.scheduleNext()
             } finally {
                 pendingResult.finish()
             }

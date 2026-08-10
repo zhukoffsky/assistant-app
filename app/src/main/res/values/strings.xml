@@ -6,7 +6,34 @@
     <string name="nav_reminders">Reminders</string>
     <string name="nav_meds">Medication</string>
 
-    <string name="placeholder_meds">Alternating dose schedule and intake history. Coming in stage 6.</string>
+    <string name="med_setup_title">Medication course</string>
+    <string name="med_name_hint">Medication name</string>
+    <string name="med_doses_hint">Dose cycle, mg</string>
+    <string name="med_doses_help">Comma separated, repeated in order: 100, 75</string>
+    <string name="med_time_hint">Time of day</string>
+    <string name="med_start_date_hint">Start date</string>
+    <string name="med_start_date_help">Sets the phase of the cycle: the first dose falls on this day</string>
+    <string name="med_invalid_input">Check the fields: dose cycle in mg, time as HH:MM, date as YYYY-MM-DD.</string>
+    <string name="med_save">Save</string>
+    <string name="med_today_dose">%1$d mg today</string>
+    <string name="med_no_dose_today">The course has not started yet</string>
+    <string name="med_unit_mg">mg</string>
+    <string name="med_status_pending">not taken yet</string>
+    <string name="med_status_taken">taken</string>
+    <string name="med_status_skipped">missed</string>
+    <string name="med_status_snoozed">snoozed</string>
+    <string name="med_snooze">Snooze for</string>
+    <string name="med_snooze_minutes">%1$d min</string>
+    <string name="med_history_title">History</string>
+    <string name="med_mark_taken">Taken</string>
+    <string name="med_edit_course">Edit</string>
+    <string name="med_delete_course">Delete course</string>
+    <string name="med_action_taken">Taken</string>
+    <string name="med_action_snooze_15">+15 min</string>
+    <string name="med_action_snooze_60">+60 min</string>
+    <string name="med_notification_title">Time to take %1$s</string>
+    <string name="med_notification_dose">%1$d mg</string>
+    <string name="channel_meds">Medication</string>
 
     <string name="reminders_input_hint">Remind me what and when</string>
     <string name="reminders_empty">No reminders.\nTry: “tomorrow at 9 call the clinic”.</string>

@@ -66,6 +66,9 @@ interface MedDao {
     @Query("SELECT * FROM med_courses WHERE isActive = 1 LIMIT 1")
     suspend fun activeCourse(): MedCourseEntity?
 
+    @Query("SELECT * FROM med_courses WHERE isActive = 1 LIMIT 1")
+    fun observeActiveCourse(): Flow<MedCourseEntity?>
+
     @Upsert
     suspend fun upsertCourse(course: MedCourseEntity): Long
 

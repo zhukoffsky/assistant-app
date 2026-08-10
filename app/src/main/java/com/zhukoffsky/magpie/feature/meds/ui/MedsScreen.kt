@@ -1,14 +1,288 @@
 package com.zhukoffsky.magpie.feature.meds.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.PlaceholderScreen
+import com.zhukoffsky.magpie.core.data.db.IntakeStatus
+import com.zhukoffsky.magpie.feature.meds.domain.DoseDay
+import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @Composable
-fun MedsScreen() {
-    PlaceholderScreen(
-        title = stringResource(R.string.nav_meds),
-        description = stringResource(R.string.placeholder_meds),
-    )
+fun MedsScreen(viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Factory)) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf(false) }
+
+    when {
+        state.isLoading -> Unit
+
+        state.course == null || editing -> CourseForm(
+            course = state.course,
+            onSave = { name, doses, time, date ->
+                val saved = viewModel.onSaveCourse(name, doses, time, date)
+                if (saved) editing = false
+                saved
+            },
+        )
+
+        else -> CourseContent(
+            state = state,
+            onTaken = viewModel::onTakenToday,
+            onSnooze = viewModel::onSnooze,
+            onTakenOn = viewModel::onTakenOn,
+            onEdit = { editing = true },
+            onDelete = viewModel::onDeleteCourse,
+        )
+    }
 }
+
+@Composable
+private fun CourseForm(
+    course: MedCourse?,
+    onSave: (name: String, doses: String, time: String, startDate: String) -> Boolean,
+) {
+    var name by remember { mutableStateOf(course?.name.orEmpty()) }
+    var doses by remember { mutableStateOf(course?.dosesMg?.joinToString(", ").orEmpty()) }
+    var time by remember {
+        mutableStateOf(course?.timeOfDay?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "09:00")
+    }
+    var startDate by remember {
+        mutableStateOf(course?.startDate?.toString() ?: LocalDate.now().toString())
+    }
+    var showError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.med_setup_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text(stringResource(R.string.med_name_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = doses,
+            onValueChange = { doses = it },
+            label = { Text(stringResource(R.string.med_doses_hint)) },
+            supportingText = { Text(stringResource(R.string.med_doses_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = time,
+            onValueChange = { time = it },
+            label = { Text(stringResource(R.string.med_time_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = startDate,
+            onValueChange = { startDate = it },
+            label = { Text(stringResource(R.string.med_start_date_hint)) },
+            supportingText = { Text(stringResource(R.string.med_start_date_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (showError) {
+            Text(
+                text = stringResource(R.string.med_invalid_input),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        Button(
+            onClick = { showError = !onSave(name, doses, time, startDate) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.med_save))
+        }
+    }
+}
+
+@Composable
+private fun CourseContent(
+    state: MedsUiState,
+    onTaken: () -> Unit,
+    onSnooze: (Long) -> Unit,
+    onTakenOn: (LocalDate) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val course = state.course ?: return
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TodayCard(
+            course = course,
+            state = state,
+            onTaken = onTaken,
+            onSnooze = onSnooze,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(onClick = onEdit) { Text(stringResource(R.string.med_edit_course)) }
+            TextButton(onClick = onDelete) { Text(stringResource(R.string.med_delete_course)) }
+        }
+
+        HorizontalDivider()
+
+        Text(
+            text = stringResource(R.string.med_history_title),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(16.dp),
+        )
+
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(items = state.history, key = { it.date.toEpochDay() }) { day ->
+                HistoryRow(day = day, onTakenOn = onTakenOn)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun TodayCard(
+    course: MedCourse,
+    state: MedsUiState,
+    onTaken: () -> Unit,
+    onSnooze: (Long) -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = course.name, style = MaterialTheme.typography.titleMedium)
+
+            Text(
+                text = state.todayDoseMg
+                    ?.let { stringResource(R.string.med_today_dose, it) }
+                    ?: stringResource(R.string.med_no_dose_today),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                text = statusLabel(state.todayStatus),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (state.todayStatus != IntakeStatus.TAKEN && state.todayDoseMg != null) {
+                Button(
+                    onClick = onTaken,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                ) {
+                    Text(stringResource(R.string.med_action_taken))
+                }
+
+                Text(
+                    text = stringResource(R.string.med_snooze),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MedsViewModel.SNOOZE_OPTIONS.forEach { minutes ->
+                        AssistChip(
+                            onClick = { onSnooze(minutes) },
+                            label = { Text(stringResource(R.string.med_snooze_minutes, minutes)) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(day: DoseDay, onTakenOn: (LocalDate) -> Unit) {
+    val dateFormatter = remember {
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = day.date.format(dateFormatter), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "${day.doseMg} ${stringResource(R.string.med_unit_mg)} · ${statusLabel(day.status)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (day.status != IntakeStatus.TAKEN) {
+            OutlinedButton(onClick = { onTakenOn(day.date) }) {
+                Text(stringResource(R.string.med_mark_taken))
+            }
+        }
+    }
+}
+
+@Composable
+private fun statusLabel(status: IntakeStatus): String = stringResource(
+    when (status) {
+        IntakeStatus.PENDING -> R.string.med_status_pending
+        IntakeStatus.TAKEN -> R.string.med_status_taken
+        IntakeStatus.SKIPPED -> R.string.med_status_skipped
+        IntakeStatus.SNOOZED -> R.string.med_status_snoozed
+    },
+)
