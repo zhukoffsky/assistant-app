@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ничего не выгружается и не переносится.
+
+  `allowBackup="false"` закрывает облачную копию на всех версиях, но с
+  Android 12 перенос на новое устройство — отдельный канал, и его этот
+  атрибут не касается. Здесь закрыты оба.
+
+  Это не осторожность ради осторожности: локальная БД объявлена единственным
+  источником правды, обмена между устройствами в проекте нет, а восстановленная
+  копия принесла бы будильники и историю приёма лекарств из чужого состояния.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

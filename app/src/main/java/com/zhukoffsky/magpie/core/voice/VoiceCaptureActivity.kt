@@ -49,13 +49,21 @@ class VoiceCaptureActivity : ComponentActivity() {
      * Активность живёт в отдельной задаче с `singleTask`, поэтому вторая
      * точка входа может попасть в уже открытый экран. Если цель другая —
      * перезапускаемся: цикла не будет, у новой копии цель совпадёт.
+     *
+     * Перезапуск идёт **свежим** интентом из [intent], а не полученным. Ради
+     * шорткатов активность объявлена `exported`, то есть прислать сюда интент
+     * может любое приложение, и пересылать его дальше как есть — значит
+     * запустить от своего имени чужую полезную нагрузку: флаги, данные,
+     * выданные права на URI. Наружу нам нужна ровно одна величина — цель,
+     * и она пересобирается заново.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (targetOf(intent) == target) return
+        val requested = targetOf(intent)
+        if (requested == target) return
 
         finish()
-        startActivity(intent)
+        startActivity(intent(this, requested))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

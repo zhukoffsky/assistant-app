@@ -219,7 +219,7 @@ private fun BottomCard(content: @Composable () -> Unit) {
                 // на неё, срезая нижнее скругление и кнопку «Сохранить».
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(14.dp)
-                .then(staggeredEntrance(index = 0))
+                .staggeredEntrance(index = 0)
                 .background(
                     color = if (blurred) {
                         MagpieTheme.colors.glassOpaque

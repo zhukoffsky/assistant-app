@@ -20,7 +20,7 @@ import kotlinx.coroutines.delay
  * список к тому моменту всё равно уехал за экран.
  */
 @Composable
-fun staggeredEntrance(index: Int): Modifier {
+fun Modifier.staggeredEntrance(index: Int): Modifier {
     val progress = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
@@ -29,7 +29,7 @@ fun staggeredEntrance(index: Int): Modifier {
         progress.animateTo(1f, MagpieMotion.bouncy())
     }
 
-    return Modifier.graphicsLayer {
+    return graphicsLayer {
         alpha = progress.value
         translationY = (1f - progress.value) * 28f
     }

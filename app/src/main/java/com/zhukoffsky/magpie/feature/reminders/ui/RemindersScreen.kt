@@ -136,7 +136,7 @@ private fun SwipeableRow(
 
     SwipeToDismissBox(
         state = dismissState,
-        modifier = modifier.then(staggeredEntrance(index)),
+        modifier = modifier.staggeredEntrance(index),
         backgroundContent = {
             // Корзина видна только пока строку тянут: сквозь стекло
             // постоянная подложка просвечивала бы на каждой строке.

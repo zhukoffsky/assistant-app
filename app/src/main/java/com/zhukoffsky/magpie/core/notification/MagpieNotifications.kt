@@ -37,8 +37,6 @@ object MagpieNotifications {
 
     /** Каналы создаются при старте процесса: повторный вызов ничего не портит. */
     fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
         val manager = context.getSystemService(NotificationManager::class.java)
 
         manager.createNotificationChannel(

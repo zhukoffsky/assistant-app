@@ -152,7 +152,7 @@ private fun SwipeableRow(
 
     SwipeToDismissBox(
         state = dismissState,
-        modifier = modifier.then(staggeredEntrance(index)),
+        modifier = modifier.staggeredEntrance(index),
         backgroundContent = {
             /*
              * Корзина рисуется только пока строку тянут. Раньше её можно было

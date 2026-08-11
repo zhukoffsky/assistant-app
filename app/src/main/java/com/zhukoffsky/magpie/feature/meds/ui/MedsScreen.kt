@@ -346,7 +346,7 @@ private fun HistoryRow(day: DoseDay, index: Int, onTakenOn: (LocalDate) -> Unit)
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .then(staggeredEntrance(index)),
+            .staggeredEntrance(index),
         shape = RoundedCornerShape(MagpieRadius.md),
     ) {
         Row(
