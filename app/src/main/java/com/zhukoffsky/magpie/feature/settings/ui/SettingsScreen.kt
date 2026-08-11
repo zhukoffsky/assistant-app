@@ -117,6 +117,35 @@ fun SettingsScreen(
             onDisconnect = viewModel::onDisconnectGoogle,
         )
 
+        /*
+         * Проблемы показываются, всё исправное — нет.
+         *
+         * Раньше здесь висел список из шести проверок, где пять всегда
+         * зелёные. Постоянная панель самодиагностики — не то, что делают в
+         * приложениях: она занимает экран, приучает не читать её и всё равно
+         * не срабатывает в нужный момент. Проверять надо молча, а показывать
+         * только то, что сломано, и сразу с действием.
+         */
+        val problems = state.checks.filter { !it.isOk }
+        if (problems.isNotEmpty()) {
+            SettingsCard {
+                Text(
+                    text = stringResource(R.string.diag_problems_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MagpieTheme.colors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.diag_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+                )
+                problems.forEach { check ->
+                    CheckRow(check = check, onOpenFix = onOpenFix)
+                }
+            }
+        }
+
         SettingsCard {
             Text(
                 text = stringResource(R.string.diag_title),
@@ -124,23 +153,19 @@ fun SettingsScreen(
                 color = MagpieTheme.colors.ink,
             )
             Text(
-                text = stringResource(R.string.diag_subtitle),
+                text = stringResource(
+                    if (problems.isEmpty()) R.string.diag_all_good else R.string.diag_test_hint,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MagpieTheme.colors.ink2,
-                modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+                modifier = Modifier.padding(top = 6.dp),
             )
-
-            // Обычный список, а не `LazyColumn`: проверок ровно шесть, а
-            // вложенная прокрутка вдоль той же оси в Compose запрещена.
-            state.checks.forEach { check ->
-                CheckRow(check = check, onOpenFix = onOpenFix)
-            }
 
             Button(
                 onClick = viewModel::onTestNotification,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp)
+                    .padding(top = 12.dp)
                     .height(52.dp),
                 shape = RoundedCornerShape(MagpieRadius.md),
             ) {

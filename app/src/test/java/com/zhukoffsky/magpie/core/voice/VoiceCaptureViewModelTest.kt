@@ -8,6 +8,7 @@ import com.zhukoffsky.magpie.feature.reminders.domain.HybridPhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RuleBasedPhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
+import com.zhukoffsky.magpie.feature.shopping.domain.RuleBasedShoppingParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -40,6 +41,8 @@ class VoiceCaptureViewModelTest {
         shoppingRepository = ShoppingRepository(shoppingDao, clock),
         reminderRepository = ReminderRepository(reminderDao, NoopScheduler, clock),
         parser = HybridPhraseParser(rules = RuleBasedPhraseParser(), llm = null),
+        // Без LLM: в тестах сети нет, а правил хватает для фраз с запятыми.
+        shoppingParser = RuleBasedShoppingParser(),
         clock = clock,
     )
 

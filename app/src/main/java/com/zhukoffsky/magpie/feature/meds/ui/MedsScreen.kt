@@ -57,7 +57,6 @@ import java.util.Locale
 
 @Composable
 fun MedsScreen(
-    onShareText: (String) -> Unit,
     viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -82,7 +81,6 @@ fun MedsScreen(
             onTakenOn = viewModel::onTakenOn,
             onEdit = { editing = true },
             onDelete = viewModel::onDeleteCourse,
-            onExport = { onShareText(viewModel.historyAsCsv()) },
         )
     }
 }
@@ -203,7 +201,6 @@ private fun CourseContent(
     onTakenOn: (LocalDate) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onExport: () -> Unit,
 ) {
     val course = state.course ?: return
 
@@ -222,7 +219,6 @@ private fun CourseContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TextButton(onClick = onEdit) { Text(stringResource(R.string.med_edit_course)) }
-            TextButton(onClick = onExport) { Text(stringResource(R.string.med_export)) }
             TextButton(onClick = onDelete) { Text(stringResource(R.string.med_delete_course)) }
         }
 

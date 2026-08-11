@@ -9,7 +9,11 @@ import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
+import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
 import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
+import com.zhukoffsky.magpie.feature.shopping.domain.HybridShoppingParser
+import com.zhukoffsky.magpie.feature.shopping.domain.RuleBasedShoppingParser
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
 import com.zhukoffsky.magpie.feature.reminders.domain.HybridPhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RuleBasedPhraseParser
@@ -83,6 +87,20 @@ class AppContainer(context: Context) {
      * (файл вне git) и попадает в `BuildConfig`. Вводить его в приложении
      * негде — сборка без ключа просто работает на одних правилах.
      */
+    /**
+     * Разбор фразы покупок. Та же связка «правила → LLM», что и у
+     * напоминаний, и по той же причине: распознавание не ставит запятых.
+     */
+    val shoppingItemsParser: ShoppingItemsParser by lazy {
+        HybridShoppingParser(
+            rules = RuleBasedShoppingParser(),
+            llm = LlmShoppingParser(
+                api = retrofit(OpenAiCompatApi.BASE_URL),
+                apiKey = { BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() } },
+            ),
+        )
+    }
+
     val phraseParser: PhraseParser by lazy {
         val apiKey = BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() }
 

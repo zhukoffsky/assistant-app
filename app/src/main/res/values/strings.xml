@@ -20,7 +20,10 @@
     <string name="sync_disconnect">Disconnect</string>
 
     <string name="diag_title">Delivery check</string>
-    <string name="diag_subtitle">A reminder that never arrives looks exactly like a reminder that was never created. Everything the system can silently block is listed here.</string>
+    <string name="diag_subtitle">The system applies these silently, and the reminder simply never arrives.</string>
+    <string name="diag_problems_title">Blocking delivery</string>
+    <string name="diag_all_good">Nothing is blocking delivery. The button below sends a real notification down the same path a reminder takes - use it if you are unsure.</string>
+    <string name="diag_test_hint">You can check delivery right now: the notification travels the same path a real one does.</string>
     <string name="diag_fix">Fix</string>
     <string name="diag_notifications">Notifications allowed</string>
     <string name="diag_notifications_problem">Nothing will be shown at all — neither reminders nor doses.</string>
@@ -44,7 +47,6 @@
     <string name="med_doses_help">Comma separated, repeated in order: 100, 75</string>
     <string name="med_time_value">Time of day: %1$s</string>
     <string name="med_start_date_value">Start date: %1$s</string>
-    <string name="med_export">Export history</string>
     <string name="med_start_date_help">Sets the phase of the cycle: the first dose falls on this day</string>
     <string name="med_invalid_input">Check the dose cycle: whole milligram numbers separated by commas.</string>
     <string name="med_save">Save</string>

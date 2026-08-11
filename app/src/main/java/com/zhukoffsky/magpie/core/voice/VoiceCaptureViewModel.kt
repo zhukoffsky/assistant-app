@@ -10,7 +10,7 @@ import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
-import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingPhraseParser
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +55,7 @@ class VoiceCaptureViewModel(
     private val shoppingRepository: ShoppingRepository,
     private val reminderRepository: ReminderRepository,
     private val parser: PhraseParser,
+    private val shoppingParser: ShoppingItemsParser,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -80,9 +81,23 @@ class VoiceCaptureViewModel(
     fun onRecognitionResult(spoken: String?) {
         when (target) {
             VoiceTarget.SHOPPING -> {
-                val items = spoken?.let(ShoppingPhraseParser::parse).orEmpty()
-                _uiState.value =
-                    if (items.isEmpty()) failure() else VoiceCaptureUiState.ConfirmingItems(items)
+                val phrase = spoken?.trim().orEmpty()
+                if (phrase.isEmpty()) {
+                    _uiState.value = failure()
+                    return
+                }
+
+                // Как и у напоминаний, разбор асинхронный: правила отвечают
+                // мгновенно, но фраза без разделителей уходит в сеть.
+                _uiState.value = VoiceCaptureUiState.Parsing
+                viewModelScope.launch {
+                    val items = shoppingParser.parse(phrase)
+                    _uiState.value = if (items.isEmpty()) {
+                        failure()
+                    } else {
+                        VoiceCaptureUiState.ConfirmingItems(items)
+                    }
+                }
             }
 
             VoiceTarget.REMINDER -> {
@@ -181,6 +196,7 @@ class VoiceCaptureViewModel(
                     shoppingRepository = container.shoppingRepository,
                     reminderRepository = container.reminderRepository,
                     parser = container.phraseParser,
+                    shoppingParser = container.shoppingItemsParser,
                 )
             }
         }

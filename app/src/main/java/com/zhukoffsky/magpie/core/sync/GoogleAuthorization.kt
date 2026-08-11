@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.sync
 
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -53,6 +54,11 @@ class GoogleAuthorization(private val context: Context) : Authorizer {
                 else -> AuthorizationResult.Failed(null)
             }
         } catch (e: Exception) {
+            // Тип исключения тут решает всё: ApiException с кодом 10 —
+            // неверный OAuth-клиент (пакет или SHA-1 не совпали), 7 — нет
+            // сети, 403 в теле — Tasks API не включён в проекте. В настройках
+            // всё это выглядит одной строкой, а различать их надо.
+            MagpieLog.w("sync: authorization failed (${e.javaClass.simpleName})", e)
             AuthorizationResult.Failed(e.message)
         }
     }
