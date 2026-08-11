@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.blurBehindWindow
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -163,41 +164,64 @@ fun VoiceCaptureScreen(
 }
 
 /**
- * Карточка внизу экрана поверх притемнения.
+ * Радиус размытия задника. Подбирается на глаз: мельче — грязь от плавающей
+ * навигации ещё читается, крупнее — фон превращается в однородное пятно и
+ * теряется ощущение, что за карточкой тот самый список.
+ */
+private val BackdropBlur = 24.dp
+
+/**
+ * Карточка внизу экрана поверх задника.
  *
  * Снизу, а не по центру: активность прозрачная, за ней виден тот самый
  * список, куда попадёт запись, и карточка не должна его закрывать целиком.
- * Размыть фон нельзя — в Compose нет backdrop-blur, — поэтому вместо
- * размытия притемнение.
+ *
+ * Задник обрабатывается двумя способами, и выбор делает не версия Android, а
+ * [blurBehindWindow]: система гасит размытие при энергосбережении и на
+ * неподдерживающих устройствах, поэтому спрашивать надо о текущем состоянии,
+ * а не о API-уровне.
  */
 @Composable
 private fun BottomCard(content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(MagpieRadius.xl)
+    val blurred = blurBehindWindow(BackdropBlur)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f)),
+            // Поверх размытия притемнение нужно только чтобы увести задник на
+            // задний план; без размытия оно единственное, что отделяет
+            // карточку от чужого экрана, — отсюда разница почти в три раза.
+            .background(Color.Black.copy(alpha = if (blurred) 0.16f else 0.45f)),
         contentAlignment = Alignment.BottomCenter,
     ) {
         /*
-         * Здесь карточка непрозрачная, а не стеклянная, как везде.
+         * Стеклянной карточка может быть только поверх размытия.
          *
-         * Стекло рассчитано на собственный мягкий фон приложения. Эта же
-         * карточка висит поверх ЧУЖОГО экрана: активность прозрачная, и за
-         * ней виден список вместе с плавающей навигацией. Сквозь заливку в
-         * 13% белого навигация просвечивала прямо под кнопками «Закрыть» и
-         * «Повторить» — читать было нельзя ни то, ни другое.
+         * Стекло рассчитано на собственный мягкий фон приложения. Без
+         * размытия эта карточка висит поверх ЧУЖОГО экрана: за прозрачной
+         * активностью виден список вместе с плавающей навигацией, и сквозь
+         * заливку в 13% белого навигация просвечивала прямо под кнопками
+         * «Закрыть» и «Повторить» — читать было нельзя ни то, ни другое.
+         * Размытие убирает именно это: под стеклом остаются мягкие пятна без
+         * контрастных краёв.
          *
-         * Рамка и скругление остаются те же, поэтому карточка не выпадает из
-         * общего языка — она просто перестаёт быть прозрачной.
+         * Рамка и скругление в обоих случаях одни и те же, поэтому карточка
+         * не выпадает из общего языка — она только перестаёт быть прозрачной.
          */
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp)
                 .then(staggeredEntrance(index = 0))
-                .background(MagpieTheme.colors.background, shape)
+                .background(
+                    color = if (blurred) {
+                        MagpieTheme.colors.glassOpaque
+                    } else {
+                        MagpieTheme.colors.background
+                    },
+                    shape = shape,
+                )
                 .border(BorderStroke(1.dp, MagpieTheme.colors.glassBorder), shape),
         ) {
             Column(modifier = Modifier.padding(22.dp)) { content() }
