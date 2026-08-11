@@ -29,6 +29,14 @@ internal val LightColors = lightColorScheme(
     onSurfaceVariant = LightInk2,
     outline = LightInk3,
     error = LightAccentPressed,
+    // Роли `surfaceContainer*` заполняются намеренно: именно их берут
+    // диалоги, пикеры и меню Material 3. Оставленные пустыми, они падают на
+    // базовую палитру Material и выпадают из тёплой гаммы.
+    surfaceContainerLowest = LightSurfaceContainer,
+    surfaceContainerLow = LightSurfaceContainer,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHigh,
 )
 
 internal val DarkColors = darkColorScheme(
@@ -46,6 +54,14 @@ internal val DarkColors = darkColorScheme(
     onSurfaceVariant = DarkInk2,
     outline = DarkInk3,
     error = DarkAccentPressed,
+    // Роли `surfaceContainer*` заполняются намеренно: именно их берут
+    // диалоги, пикеры и меню Material 3. Оставленные пустыми, они падают на
+    // базовую палитру Material и выпадают из тёплой гаммы.
+    surfaceContainerLowest = DarkSurfaceContainer,
+    surfaceContainerLow = DarkSurfaceContainer,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHigh,
 )
 
 /**

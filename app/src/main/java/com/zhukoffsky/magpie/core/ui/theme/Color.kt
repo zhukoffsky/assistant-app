@@ -23,6 +23,20 @@ internal val LightOnAccent = Color(0xFFFFFFFF)
 internal val LightOk = Color(0xFF1E9E6A)
 internal val LightWarn = Color(0xFFC7791B)
 
+/*
+ * Подложка диалогов и меню.
+ *
+ * Material 3 берёт её из ролей `surfaceContainer*`, а не из `surface`. Не
+ * заполнить их — значит отдать диалоги базовой палитре Material: на тёплом
+ * персиковом фоне всплывала сиреневая карточка `#ECE6F0`, в тёмной теме —
+ * холодная серо-синяя `#2B2930`.
+ *
+ * Диалог светлее фона, а не темнее: он всплывает над экраном, и в светлой
+ * теме глаз ждёт поднятия к белому.
+ */
+internal val LightSurfaceContainer = Color(0xFFFFFBF8)
+internal val LightSurfaceContainerHigh = Color(0xFFFFFFFF)
+
 // ── Тёмная ────────────────────────────────────────────────────────────────
 internal val DarkBg = Color(0xFF151110)
 internal val DarkInk = Color(0xFFFCF5F0)
@@ -33,6 +47,11 @@ internal val DarkAccentPressed = Color(0xFFFF6B35)
 internal val DarkOnAccent = Color(0xFF26150D)
 internal val DarkOk = Color(0xFF3DD598)
 internal val DarkWarn = Color(0xFFE7A74A)
+
+// В тёмной теме поднятие идёт в другую сторону — к светлому, но с тем же
+// тёплым подтоном, что и фон.
+internal val DarkSurfaceContainer = Color(0xFF1E1918)
+internal val DarkSurfaceContainerHigh = Color(0xFF272120)
 
 /**
  * Токены, которым нет места в `ColorScheme` Material 3.
