@@ -42,21 +42,39 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
+import kotlinx.coroutines.flow.first
 
 /**
  * Виджет списка покупок.
  *
- * Читает тот же поток Room, что и экран приложения, поэтому обновляется сам:
- * `updatePeriodMillis` в описании виджета стоит нулём, периодических
- * пробуждений нет.
+ * Читает тот же поток Room, что и экран приложения, поэтому пока сессия
+ * Glance жива, виджет обновляется сам: `updatePeriodMillis` в описании стоит
+ * нулём, периодических пробуждений нет.
  */
 class ShoppingWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val repository = (context.applicationContext as MagpieApp).container.shoppingRepository
 
+        /*
+         * Первое значение берётся ДО `provideContent`, а не только потоком
+         * внутри него.
+         *
+         * Раньше здесь был `collectAsState(initial = emptyList())`, и виджет
+         * показывал «Покупать нечего» при полном списке. Причина в том, что
+         * Glance публикует первый же кадр композиции: он успевал уйти в
+         * лаунчер с пустым `initial`, пока Room отдавал данные. Сессия к тому
+         * моменту заканчивалась, второго кадра не было, и лаунчер оставался с
+         * пустым виджетом — даже после принудительного APPWIDGET_UPDATE.
+         *
+         * `first()` — приостановка: к моменту первой композиции список уже
+         * настоящий. Поток при этом сохраняется, чтобы живая сессия
+         * по-прежнему обновлялась сама.
+         */
+        val initial = repository.observeItems().first()
+
         provideContent {
-            val items by repository.observeItems().collectAsState(initial = emptyList())
+            val items by repository.observeItems().collectAsState(initial = initial)
             GlanceTheme(colors = MagpieGlanceColors) {
                 WidgetContent(context = context, items = items)
             }

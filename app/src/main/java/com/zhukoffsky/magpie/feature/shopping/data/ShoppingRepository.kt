@@ -12,10 +12,20 @@ import java.time.Clock
  *
  * [clock] параметризован ради тестов: время создания записи иначе не
  * зафиксировать.
+ *
+ * [onChanged] вызывается после каждой записи и служит одному: растолкать
+ * виджет. Подписка на поток Room обновляет его только пока жива сессия
+ * Glance, а она заканчивается вместе с процессом приложения — после чего
+ * лаунчер показывает последний отрисованный кадр сколь угодно долго. Хук
+ * лежит здесь, а не в двух ViewModel, потому что писать в список умеет ещё и
+ * голосовой ввод, и третью точку записи легко забыть. Android-зависимостей у
+ * репозитория при этом не появляется: чем именно «растолкать» — решает
+ * `AppContainer`.
  */
 class ShoppingRepository(
     private val dao: ShoppingDao,
     private val clock: Clock = Clock.systemUTC(),
+    private val onChanged: suspend () -> Unit = {},
 ) {
 
     fun observeItems(): Flow<List<ShoppingItem>> =
@@ -39,6 +49,7 @@ class ShoppingRepository(
                 createdAt = clock.instant(),
             ),
         )
+        onChanged()
         return true
     }
 
@@ -48,11 +59,18 @@ class ShoppingRepository(
             isChecked = isChecked,
             checkedAt = if (isChecked) clock.instant() else null,
         )
+        onChanged()
     }
 
-    suspend fun delete(id: Long) = dao.deleteById(id)
+    suspend fun delete(id: Long) {
+        dao.deleteById(id)
+        onChanged()
+    }
 
-    suspend fun deleteChecked() = dao.deleteChecked()
+    suspend fun deleteChecked() {
+        dao.deleteChecked()
+        onChanged()
+    }
 }
 
 private fun ShoppingItemEntity.toDomain() = ShoppingItem(
