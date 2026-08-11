@@ -3,22 +3,21 @@ package com.zhukoffsky.magpie.feature.shopping.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -28,18 +27,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.MagpieInputBar
 import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
+import com.zhukoffsky.magpie.core.ui.staggeredEntrance
+import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
+import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 
 @Composable
@@ -77,83 +77,58 @@ private fun ShoppingScreenContent(
     onClearChecked: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        InputRow(
+        MagpieInputBar(
             value = state.input,
             onValueChange = onInputChange,
             onSubmit = onAddClick,
             onVoiceInput = onVoiceInput,
+            placeholder = stringResource(R.string.shopping_input_hint),
+            addContentDescription = stringResource(R.string.shopping_add),
         )
 
         if (state.checkedCount > 0) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 22.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = stringResource(R.string.shopping_checked_count, state.checkedCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MagpieTheme.colors.ink2,
                 )
                 TextButton(onClick = onClearChecked) {
-                    Text(stringResource(R.string.shopping_clear_checked))
-                }
-            }
-        }
-
-        HorizontalDivider()
-
-        if (state.items.isEmpty() && !state.isLoading) {
-            EmptyState()
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(items = state.items, key = { it.id }) { item ->
-                    SwipeableRow(
-                        item = item,
-                        onCheckedChange = { checked -> onCheckedChange(item, checked) },
-                        onDelete = { onDelete(item) },
+                    Text(
+                        text = stringResource(R.string.shopping_clear_checked),
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun InputRow(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onVoiceInput: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.shopping_input_hint)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            // Клавиатура намеренно не скрывается: подряд идущие покупки
-            // удобнее добавлять не закрывая её.
-            keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-        )
-        FilledIconButton(onClick = onSubmit) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.shopping_add))
-        }
-        FilledIconButton(onClick = onVoiceInput) {
-            Icon(
-                painter = painterResource(R.drawable.ic_mic),
-                contentDescription = stringResource(R.string.voice_input),
-            )
+        // Разделителя нет намеренно: каждая позиция — отдельное стёклышко,
+        // и линия между ними спорила бы с их собственными рамками.
+
+        if (state.items.isEmpty() && !state.isLoading) {
+            EmptyState()
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                itemsIndexed(items = state.items, key = { _, item -> item.id }) { index, item ->
+                    SwipeableRow(
+                        item = item,
+                        index = index,
+                        onCheckedChange = { checked -> onCheckedChange(item, checked) },
+                        onDelete = { onDelete(item) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
         }
     }
 }
@@ -162,8 +137,10 @@ private fun InputRow(
 @Composable
 private fun SwipeableRow(
     item: ShoppingItem,
+    index: Int,
     onCheckedChange: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -175,18 +152,27 @@ private fun SwipeableRow(
 
     SwipeToDismissBox(
         state = dismissState,
+        modifier = modifier.then(staggeredEntrance(index)),
         backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.shopping_delete),
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            /*
+             * Корзина рисуется только пока строку тянут. Раньше её можно было
+             * держать всегда: непрозрачная строка её закрывала. Стекло —
+             * полупрозрачное, и подложка стала просвечивать сквозь каждую
+             * строку, из-за чего список выглядел «уже удалённым».
+             */
+            if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.shopping_delete),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         },
     ) {
@@ -196,23 +182,33 @@ private fun SwipeableRow(
 
 @Composable
 private fun ItemRow(item: ShoppingItem, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(end = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    GlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(MagpieRadius.md),
     ) {
-        Checkbox(checked = item.isChecked, onCheckedChange = onCheckedChange)
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
-            color = if (item.isChecked) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = item.isChecked,
+                onCheckedChange = onCheckedChange,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedColor = MagpieTheme.colors.ink3,
+                ),
+            )
+            Text(
+                text = item.title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+                color = if (item.isChecked) MagpieTheme.colors.ink3 else MagpieTheme.colors.ink,
+            )
+        }
     }
 }
 
@@ -228,7 +224,7 @@ private fun EmptyState() {
         Text(
             text = stringResource(R.string.shopping_empty),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MagpieTheme.colors.ink2,
             textAlign = TextAlign.Center,
         )
     }

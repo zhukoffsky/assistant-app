@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_title">Внешний вид</string>
+
+    <string name="appearance_theme">Тема</string>
+    <string name="appearance_theme_system">Как в системе</string>
+    <string name="appearance_theme_light">Светлая</string>
+    <string name="appearance_theme_dark">Тёмная</string>
+
+    <string name="appearance_language">Язык</string>
+    <string name="appearance_language_system">Как в системе</string>
+    <string name="appearance_language_ru">Русский</string>
+    <string name="appearance_language_en">English</string>
+
+    
+    <string name="appearance_language_note">Действует на экраны приложения. Уведомления следуют языку системы — его меняют в настройках Android, «Язык приложения».</string>
+</resources>

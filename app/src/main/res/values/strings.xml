@@ -9,12 +9,6 @@
 
     <string name="voice_parsing">Working out the time…</string>
 
-    <string name="llm_title">Smarter phrase parsing</string>
-    <string name="llm_explanation">Rules handle the usual wordings instantly and offline. Add an Anthropic API key and anything they cannot parse goes to Claude Haiku instead. The key is stored on this device only.</string>
-    <string name="llm_key_hint">Anthropic API key</string>
-    <string name="llm_key_save">Save key</string>
-    <string name="llm_key_saved">Key saved</string>
-    <string name="llm_key_clear">Remove</string>
 
     <string name="sync_title">Google Tasks</string>
     <string name="sync_one_way_note">One way only: reminders are pushed to Google. Changes made there are not read back.</string>

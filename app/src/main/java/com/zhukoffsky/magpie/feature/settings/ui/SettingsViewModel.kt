@@ -10,7 +10,9 @@ import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
-import com.zhukoffsky.magpie.core.llm.LlmPreferences
+import com.zhukoffsky.magpie.core.settings.AppLanguage
+import com.zhukoffsky.magpie.core.settings.AppearancePreferences
+import com.zhukoffsky.magpie.core.settings.ThemeMode
 import com.zhukoffsky.magpie.core.sync.AuthorizationResult
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
 import com.zhukoffsky.magpie.core.sync.SyncSettings
@@ -33,25 +35,27 @@ class SettingsViewModel(
     private val testAlarmScheduler: TestAlarmScheduler,
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
-    private val llmPreferences: LlmPreferences,
+    private val appearance: AppearancePreferences,
 ) : ViewModel() {
 
-    /**
-     * Только признак наличия ключа. Сам ключ обратно в интерфейс не
-     * поднимается: показывать его на экране незачем.
-     */
-    val hasApiKey: StateFlow<Boolean> = llmPreferences.hasApiKey.stateIn(
+    val themeMode: StateFlow<ThemeMode> = appearance.themeMode.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
-        initialValue = false,
+        initialValue = ThemeMode.SYSTEM,
     )
 
-    fun onApiKeyEntered(key: String) {
-        viewModelScope.launch { llmPreferences.setApiKey(key) }
+    val language: StateFlow<AppLanguage> = appearance.language.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = AppLanguage.SYSTEM,
+    )
+
+    fun onThemeModeSelected(mode: ThemeMode) {
+        viewModelScope.launch { appearance.setThemeMode(mode) }
     }
 
-    fun onApiKeyCleared() {
-        viewModelScope.launch { llmPreferences.clear() }
+    fun onLanguageSelected(language: AppLanguage) {
+        viewModelScope.launch { appearance.setLanguage(language) }
     }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -109,14 +113,16 @@ class SettingsViewModel(
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val container =
-                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
+                val container = app.container
                 SettingsViewModel(
                     inspector = container.diagnosticsInspector,
                     testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,
-                    llmPreferences = container.llmPreferences,
+                    // Мимо AppContainer: DataStore всё равно один на процесс,
+                    // так что дублирования не возникает.
+                    appearance = AppearancePreferences(app),
                 )
             }
         }

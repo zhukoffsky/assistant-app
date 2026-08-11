@@ -6,9 +6,9 @@ import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
-import com.zhukoffsky.magpie.core.llm.AnthropicApi
+import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
-import com.zhukoffsky.magpie.core.llm.LlmPreferences
+import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
 import com.zhukoffsky.magpie.feature.reminders.domain.HybridPhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RuleBasedPhraseParser
@@ -66,18 +66,22 @@ class AppContainer(context: Context) {
 
     private val googleTasksApi: GoogleTasksApi by lazy { retrofit(GoogleTasksApi.BASE_URL) }
 
-    val llmPreferences by lazy { LlmPreferences(appContext) }
-
     /**
      * Сначала правила, при неудаче — LLM. Обе реализации за общим
      * интерфейсом и взаимозаменяемы.
+     *
+     * Ключ один на всех и приезжает из сборки: он лежит в `local.properties`
+     * (файл вне git) и попадает в `BuildConfig`. Вводить его в приложении
+     * негде — сборка без ключа просто работает на одних правилах.
      */
     val phraseParser: PhraseParser by lazy {
+        val apiKey = BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() }
+
         HybridPhraseParser(
             rules = RuleBasedPhraseParser(),
             llm = LlmPhraseParser(
-                api = retrofit(AnthropicApi.BASE_URL),
-                apiKey = { llmPreferences.apiKey() },
+                api = retrofit(OpenAiCompatApi.BASE_URL),
+                apiKey = { apiKey },
             ),
         )
     }

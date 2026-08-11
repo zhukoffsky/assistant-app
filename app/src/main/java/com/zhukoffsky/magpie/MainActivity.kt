@@ -15,7 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
 import com.zhukoffsky.magpie.core.ui.MagpieAppScaffold
-import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+import com.zhukoffsky.magpie.core.ui.MagpieRoot
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 
 class MainActivity : ComponentActivity() {
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MagpieTheme {
+            MagpieRoot {
                 // Запуск активностей и системных экранов — обязанность точки
                 // входа, а не composable.
                 MagpieAppScaffold(

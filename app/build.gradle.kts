@@ -1,3 +1,17 @@
+import java.util.Properties
+
+/**
+ * Ключ LLM-провайдера из `local.properties` — файла, которого нет в git.
+ *
+ * Нужен, чтобы приложение работало сразу после установки, без захода в
+ * настройки. В сам код ключ по-прежнему не попадает: пустая строка здесь —
+ * штатный случай (CI, чужая машина), тогда работает поле в настройках.
+ */
+val llmApiKey: String = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}.getProperty("zaiApiKey").orEmpty()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,6 +31,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "LLM_API_KEY", "\"$llmApiKey\"")
     }
 
     buildTypes {

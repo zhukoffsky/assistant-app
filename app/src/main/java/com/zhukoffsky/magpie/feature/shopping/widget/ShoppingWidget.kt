@@ -19,8 +19,10 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -32,9 +34,11 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.action.actionParametersOf
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
@@ -53,7 +57,7 @@ class ShoppingWidget : GlanceAppWidget() {
 
         provideContent {
             val items by repository.observeItems().collectAsState(initial = emptyList())
-            GlanceTheme {
+            GlanceTheme(colors = MagpieGlanceColors) {
                 WidgetContent(context = context, items = items)
             }
         }
@@ -69,16 +73,19 @@ private fun WidgetContent(context: Context, items: List<ShoppingItem>) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(GlanceTheme.colors.widgetBackground)
-            .padding(12.dp),
+            // Ни стекла, ни градиента: Glance умеет только плоскую заливку со
+            // скруглением. Узнаваемость держится на тёплом фоне и акценте.
+            .background(GlanceTheme.colors.background)
+            .cornerRadius(28.dp)
+            .padding(16.dp),
     ) {
         Header(context)
 
         if (items.isEmpty()) {
             Text(
                 text = context.getString(R.string.widget_shopping_empty),
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                modifier = GlanceModifier.padding(top = 8.dp),
+                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 14.sp),
+                modifier = GlanceModifier.padding(top = 10.dp),
             )
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
@@ -111,20 +118,31 @@ private fun Header(context: Context) {
             style = TextStyle(
                 color = GlanceTheme.colors.onSurface,
                 fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
             ),
         )
         Spacer(modifier = GlanceModifier.defaultWeight())
-        Image(
-            provider = ImageProvider(R.drawable.ic_mic),
-            contentDescription = context.getString(R.string.voice_input),
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
+
+        // Микрофон — заливка акцентом, как кнопки в приложении. В Glance для
+        // этого нужен Box с фоном: у Image своего фона нет.
+        Box(
             modifier = GlanceModifier
-                .size(32.dp)
+                .size(38.dp)
+                .background(GlanceTheme.colors.primary)
+                .cornerRadius(14.dp)
                 .clickable(
                     actionStartActivity(
                         VoiceCaptureActivity.intent(context, VoiceTarget.SHOPPING),
                     ),
                 ),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_mic),
+                contentDescription = context.getString(R.string.voice_input),
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.onPrimary),
+                modifier = GlanceModifier.size(20.dp),
+            )
+        }
     }
 }
