@@ -42,9 +42,7 @@ class ReminderVoiceWidget : GlanceAppWidget() {
                 Column(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(GlanceTheme.colors.background)
-                        .cornerRadius(28.dp)
-                        .padding(10.dp)
+                        .padding(4.dp)
                         .clickable(
                             actionStartActivity(
                                 VoiceCaptureActivity.intent(context, VoiceTarget.REMINDER),
@@ -53,13 +51,21 @@ class ReminderVoiceWidget : GlanceAppWidget() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Микрофон залит акцентом — та же кнопка, что и в
-                    // приложении, только крупнее: виджет ловится пальцем.
+                    /*
+                     * Подписи нет намеренно. Виджет занимает одну ячейку, а
+                     * «Напоминания» в неё не влезает ни при каком кегле —
+                     * на телефоне слово превращалось в «Напоми». Раз читать
+                     * тут нечего, вся ячейка отдана кнопке: цель под палец
+                     * получается больше, а обрезать становится нечего.
+                     *
+                     * Название виджета человек видит в списке при добавлении,
+                     * а TalkBack читает contentDescription иконки.
+                     */
                     Box(
                         modifier = GlanceModifier
-                            .size(56.dp)
+                            .fillMaxSize()
                             .background(GlanceTheme.colors.primary)
-                            .cornerRadius(20.dp),
+                            .cornerRadius(24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Image(
@@ -68,17 +74,9 @@ class ReminderVoiceWidget : GlanceAppWidget() {
                                 R.string.widget_reminder_description,
                             ),
                             colorFilter = ColorFilter.tint(GlanceTheme.colors.onPrimary),
-                            modifier = GlanceModifier.size(28.dp),
+                            modifier = GlanceModifier.size(32.dp),
                         )
                     }
-                    Text(
-                        text = context.getString(R.string.nav_reminders),
-                        style = TextStyle(
-                            color = GlanceTheme.colors.onSurface,
-                            fontSize = 13.sp,
-                        ),
-                        modifier = GlanceModifier.padding(top = 8.dp),
-                    )
                 }
             }
         }
