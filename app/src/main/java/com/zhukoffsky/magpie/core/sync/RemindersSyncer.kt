@@ -125,6 +125,10 @@ class RemindersSyncer(
             dao.setRemoteId(reminder.id, remote.id ?: remoteId, SyncState.SYNCED)
             null
         } catch (e: Exception) {
+            // Без этого в настройках видно только «не получилось», а по
+            // какой причине — неизвестно: 401 от протухшего токена, 403 от
+            // невключённого Tasks API и отсутствие сети выглядят одинаково.
+            MagpieLog.w("sync: upload of reminder=${reminder.id} failed", e)
             e.message ?: UNKNOWN_ERROR
         }
     }
@@ -148,6 +152,7 @@ class RemindersSyncer(
             api.deleteTask("Bearer $token", settings.taskListId, remoteTaskId)
             SyncOutcome.Success(uploaded = 0)
         } catch (e: Exception) {
+            MagpieLog.w("sync: delete of remote=$remoteTaskId failed", e)
             SyncOutcome.Retry(e.message ?: UNKNOWN_ERROR)
         }
     }
