@@ -1,8 +1,10 @@
 package com.zhukoffsky.magpie.core.ui
 
 import android.content.res.Configuration
+import android.view.ContextThemeWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import com.zhukoffsky.magpie.core.settings.AppLanguage
@@ -35,13 +37,31 @@ fun MagpieLanguage(language: AppLanguage, content: @Composable () -> Unit) {
     }
 
     val context = LocalContext.current
-    val configuration = Configuration(LocalConfiguration.current).apply {
-        setLocale(Locale.forLanguageTag(tag))
+    val base = LocalConfiguration.current
+
+    val configuration = remember(base, tag) {
+        Configuration(base).apply { setLocale(Locale.forLanguageTag(tag)) }
+    }
+
+    /*
+     * `ContextThemeWrapper`, а не `createConfigurationContext`.
+     *
+     * Последний возвращает самостоятельный контекст, в цепочке которого
+     * активности нет вовсе. А всё, что ищет владельца подъёмом по
+     * `ContextWrapper.baseContext` — `rememberLauncherForActivityResult` и
+     * прочие `LocalActivity*` — на таком контексте не находит ничего и падает.
+     * Экран «Настройки» с его запросом согласия Google так и уронил
+     * приложение: `No ActivityResultRegistryOwner was provided`.
+     *
+     * Обёртка оставляет активность на месте и при этом подменяет конфигурацию.
+     */
+    val localized = remember(context, configuration) {
+        ContextThemeWrapper(context, 0).apply { applyOverrideConfiguration(configuration) }
     }
 
     CompositionLocalProvider(
         LocalConfiguration provides configuration,
-        LocalContext provides context.createConfigurationContext(configuration),
+        LocalContext provides localized,
         content = content,
     )
 }
