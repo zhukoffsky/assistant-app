@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.action.actionParametersOf
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.theme.magpieGlanceColors
+import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
@@ -72,11 +72,10 @@ class ShoppingWidget : GlanceAppWidget() {
          * по-прежнему обновлялась сама.
          */
         val initial = repository.observeItems().first()
-        val colors = magpieGlanceColors(context)
 
         provideContent {
             val items by repository.observeItems().collectAsState(initial = initial)
-            GlanceTheme(colors = colors) {
+            GlanceTheme(colors = MagpieGlanceColors) {
                 WidgetContent(context = context, items = items)
             }
         }
