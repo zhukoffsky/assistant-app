@@ -7,7 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 
-private val LightColors = lightColorScheme(
+internal val LightColors = lightColorScheme(
     primary = LightAccent,
     onPrimary = LightOnAccent,
     primaryContainer = LightAccent,
@@ -24,7 +24,7 @@ private val LightColors = lightColorScheme(
     error = LightAccentPressed,
 )
 
-private val DarkColors = darkColorScheme(
+internal val DarkColors = darkColorScheme(
     primary = DarkAccent,
     onPrimary = DarkOnAccent,
     primaryContainer = DarkAccent,
