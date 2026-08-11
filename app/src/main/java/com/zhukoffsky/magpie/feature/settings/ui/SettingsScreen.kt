@@ -4,15 +4,14 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
@@ -20,20 +19,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,7 +64,6 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
     val consentRequest by viewModel.consentRequest.collectAsStateWithLifecycle()
-    val hasApiKey by viewModel.hasApiKey.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
 
@@ -93,7 +86,20 @@ fun SettingsScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    /*
+     * Экран прокручивается целиком, одной поверхностью.
+     *
+     * Раньше скроллился только список проверок внутри `LazyColumn`, зажатого
+     * в `weight(1f)`, а всё остальное стояло намертво. Пока карточки были
+     * маленькими, это сходило с рук; после редизайна на них ушла почти вся
+     * высота, списку осталась полоска в одну строку, а кнопка теста уехала
+     * за край экрана без всякой возможности до неё добраться.
+     */
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
         AppearanceCard(
             themeMode = themeMode,
             language = language,
@@ -106,14 +112,6 @@ fun SettingsScreen(
             onConnect = viewModel::onConnectGoogle,
             onSyncNow = viewModel::onSyncNow,
             onDisconnect = viewModel::onDisconnectGoogle,
-        )
-
-        HorizontalDivider()
-
-        ApiKeyCard(
-            hasApiKey = hasApiKey,
-            onSave = viewModel::onApiKeyEntered,
-            onClear = viewModel::onApiKeyCleared,
         )
 
         HorizontalDivider()
@@ -132,10 +130,10 @@ fun SettingsScreen(
 
         HorizontalDivider()
 
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(items = state.checks, key = { it.id }) { check ->
-                CheckRow(check = check, onOpenFix = onOpenFix)
-            }
+        // Обычный список, а не `LazyColumn`: проверок ровно шесть, а
+        // вложенная прокрутка вдоль той же оси в Compose запрещена.
+        state.checks.forEach { check ->
+            CheckRow(check = check, onOpenFix = onOpenFix)
         }
 
         HorizontalDivider()
@@ -347,65 +345,6 @@ private fun GoogleSyncCard(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onSyncNow) { Text(stringResource(R.string.sync_now)) }
             TextButton(onClick = onDisconnect) { Text(stringResource(R.string.sync_disconnect)) }
-        }
-    }
-}
-
-@Composable
-private fun ApiKeyCard(
-    hasApiKey: Boolean,
-    onSave: (String) -> Unit,
-    onClear: () -> Unit,
-) {
-    var draft by remember { mutableStateOf("") }
-
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            text = stringResource(R.string.llm_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.llm_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-
-        if (hasApiKey) {
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.llm_key_saved),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onClear) { Text(stringResource(R.string.llm_key_clear)) }
-            }
-            return@Column
-        }
-
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            label = { Text(stringResource(R.string.llm_key_hint)) },
-            singleLine = true,
-            // Ключ не показывается даже при вводе и не попадает в
-            // автозаполнение и подсказки клавиатуры.
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        )
-        TextButton(
-            onClick = {
-                onSave(draft)
-                draft = ""
-            },
-        ) {
-            Text(stringResource(R.string.llm_key_save))
         }
     }
 }

@@ -10,7 +10,6 @@ import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
-import com.zhukoffsky.magpie.core.llm.LlmPreferences
 import com.zhukoffsky.magpie.core.settings.AppLanguage
 import com.zhukoffsky.magpie.core.settings.AppearancePreferences
 import com.zhukoffsky.magpie.core.settings.ThemeMode
@@ -36,7 +35,6 @@ class SettingsViewModel(
     private val testAlarmScheduler: TestAlarmScheduler,
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
-    private val llmPreferences: LlmPreferences,
     private val appearance: AppearancePreferences,
 ) : ViewModel() {
 
@@ -58,24 +56,6 @@ class SettingsViewModel(
 
     fun onLanguageSelected(language: AppLanguage) {
         viewModelScope.launch { appearance.setLanguage(language) }
-    }
-
-    /**
-     * Только признак наличия ключа. Сам ключ обратно в интерфейс не
-     * поднимается: показывать его на экране незачем.
-     */
-    val hasApiKey: StateFlow<Boolean> = llmPreferences.hasApiKey.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
-        initialValue = false,
-    )
-
-    fun onApiKeyEntered(key: String) {
-        viewModelScope.launch { llmPreferences.setApiKey(key) }
-    }
-
-    fun onApiKeyCleared() {
-        viewModelScope.launch { llmPreferences.clear() }
     }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -140,11 +120,8 @@ class SettingsViewModel(
                     testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,
-                    llmPreferences = container.llmPreferences,
-                    // Мимо AppContainer намеренно: контейнер сейчас правится
-                    // под смену LLM-провайдера, и трогать его — значит тащить
-                    // чужую незаконченную работу в свой коммит. DataStore
-                    // всё равно один на процесс, дублирования не возникает.
+                    // Мимо AppContainer: DataStore всё равно один на процесс,
+                    // так что дублирования не возникает.
                     appearance = AppearancePreferences(app),
                 )
             }

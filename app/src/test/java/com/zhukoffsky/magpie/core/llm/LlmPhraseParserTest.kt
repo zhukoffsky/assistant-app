@@ -16,7 +16,7 @@ class LlmPhraseParserTest {
     private val zone = ZoneId.of("Europe/Moscow")
     private val now = ZonedDateTime.of(2026, 8, 10, 15, 0, 0, 0, zone)
 
-    private val api = FakeAnthropicApi()
+    private val api = FakeOpenAiCompatApi()
 
     private fun parser(key: String? = "sk-test") = LlmPhraseParser(api, apiKey = { key })
 
@@ -97,33 +97,45 @@ class LlmPhraseParserTest {
     }
 
     @Test
-    fun `the phrase is sent as the user message and the key as a header`() = runTest {
+    fun `an answer without choices is rejected`() = runTest {
+        api.replyWithoutChoices = true
+
+        assertNull(parser().parse("что-то", now))
+    }
+
+    @Test
+    fun `the phrase is the user message and the key rides in the bearer header`() = runTest {
         api.reply = """{"title":"звонок","dueAt":"2026-08-11T09:00:00+03:00"}"""
 
         parser(key = "sk-secret").parse("позвонить завтра", now)
 
-        assertEquals("sk-secret", api.lastKey)
-        assertEquals("позвонить завтра", api.lastBody?.messages?.single()?.content)
-        assertTrue(api.lastBody?.system?.contains("2026-08-10T15:00") == true)
+        assertEquals("Bearer sk-secret", api.lastAuthorization)
+
+        val messages = api.lastBody?.messages.orEmpty()
+        assertEquals("позвонить завтра", messages.single { it.role == "user" }.content)
+        assertTrue(messages.single { it.role == "system" }.content.contains("2026-08-10T15:00"))
     }
 
-    private class FakeAnthropicApi : AnthropicApi {
+    private class FakeOpenAiCompatApi : OpenAiCompatApi {
         var reply: String = ""
+        var replyWithoutChoices = false
         var failWith: Exception? = null
         var calls = 0
-        var lastKey: String? = null
-        var lastBody: MessagesRequest? = null
+        var lastAuthorization: String? = null
+        var lastBody: ChatRequest? = null
 
-        override suspend fun messages(
-            apiKey: String,
-            version: String,
-            body: MessagesRequest,
-        ): MessagesResponse {
+        override suspend fun chatCompletions(
+            authorization: String,
+            body: ChatRequest,
+        ): ChatResponse {
             calls++
-            lastKey = apiKey
+            lastAuthorization = authorization
             lastBody = body
             failWith?.let { throw it }
-            return MessagesResponse(listOf(ContentBlock(type = "text", text = reply)))
+            if (replyWithoutChoices) return ChatResponse()
+            return ChatResponse(
+                listOf(ChatChoice(ChatMessage(role = "assistant", content = reply))),
+            )
         }
     }
 }
