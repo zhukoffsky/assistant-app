@@ -6,7 +6,10 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -114,46 +117,47 @@ fun SettingsScreen(
             onDisconnect = viewModel::onDisconnectGoogle,
         )
 
-        HorizontalDivider()
+        SettingsCard {
+            Text(
+                text = stringResource(R.string.diag_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MagpieTheme.colors.ink,
+            )
+            Text(
+                text = stringResource(R.string.diag_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MagpieTheme.colors.ink2,
+                modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+            )
 
-        Text(
-            text = stringResource(R.string.diag_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(16.dp),
-        )
-        Text(
-            text = stringResource(R.string.diag_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-        )
+            // Обычный список, а не `LazyColumn`: проверок ровно шесть, а
+            // вложенная прокрутка вдоль той же оси в Compose запрещена.
+            state.checks.forEach { check ->
+                CheckRow(check = check, onOpenFix = onOpenFix)
+            }
 
-        HorizontalDivider()
-
-        // Обычный список, а не `LazyColumn`: проверок ровно шесть, а
-        // вложенная прокрутка вдоль той же оси в Compose запрещена.
-        state.checks.forEach { check ->
-            CheckRow(check = check, onOpenFix = onOpenFix)
-        }
-
-        HorizontalDivider()
-
-        Column(modifier = Modifier.padding(16.dp)) {
             Button(
                 onClick = viewModel::onTestNotification,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(MagpieRadius.md),
             ) {
                 Text(stringResource(R.string.diag_test_button))
             }
             if (state.testScheduled) {
                 Text(
                     text = stringResource(R.string.diag_test_scheduled),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }
+
+        // Нижняя навигация плавающая и перекрывает край содержимого.
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -168,13 +172,8 @@ private fun AppearanceCard(
     onThemeModeSelected: (ThemeMode) -> Unit,
     onLanguageSelected: (AppLanguage) -> Unit,
 ) {
-    GlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(MagpieRadius.lg),
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+    SettingsCard {
+        run {
             Text(
                 text = stringResource(R.string.appearance_title),
                 style = MaterialTheme.typography.titleMedium,
@@ -232,6 +231,24 @@ private fun AppearanceCard(
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
+    }
+}
+
+/**
+ * Секция настроек — стёклышко с одинаковыми полями.
+ *
+ * Разделителей между секциями нет: у каждой своя рамка, и линия рядом с ней
+ * читалась бы как вторая граница.
+ */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(MagpieRadius.lg),
+    ) {
+        Column(modifier = Modifier.padding(18.dp), content = content)
     }
 }
 
@@ -302,16 +319,17 @@ private fun GoogleSyncCard(
         DateTimeFormatter.ofPattern("d MMM, HH:mm", locale).withZone(ZoneId.systemDefault())
     }
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    SettingsCard {
         Text(
             text = stringResource(R.string.sync_title),
             style = MaterialTheme.typography.titleMedium,
+            color = MagpieTheme.colors.ink,
         )
         Text(
             text = stringResource(R.string.sync_one_way_note),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
+            color = MagpieTheme.colors.ink2,
+            modifier = Modifier.padding(top = 6.dp),
         )
 
         if (!settings.isEnabled) {
@@ -319,11 +337,13 @@ private fun GoogleSyncCard(
                 onClick = onConnect,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp),
+                    .padding(top = 14.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(MagpieRadius.md),
             ) {
                 Text(stringResource(R.string.sync_connect))
             }
-            return@Column
+            return@SettingsCard
         }
 
         Text(
@@ -331,14 +351,15 @@ private fun GoogleSyncCard(
                 ?.let { stringResource(R.string.sync_last, formatter.format(it)) }
                 ?: stringResource(R.string.sync_never),
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 8.dp),
+            color = MagpieTheme.colors.ink,
+            modifier = Modifier.padding(top = 10.dp),
         )
 
         settings.lastError?.let { error ->
             Text(
                 text = stringResource(R.string.sync_error, error),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                color = MagpieTheme.colors.warn,
             )
         }
 
@@ -354,22 +375,27 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(vertical = 10.dp),
+        // По верху, а не по центру: у проблемной строки заголовок переносится
+        // и добавляется объяснение, и центрированная иконка уезжала к
+        // середине абзаца вместо своей строки.
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
             imageVector = if (check.isOk) Icons.Default.CheckCircle else Icons.Default.Warning,
             contentDescription = null,
-            tint = if (check.isOk) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.error
-            },
+            // Проблема — янтарь, а не красный: это не авария, а настройка,
+            // которую можно поправить.
+            tint = if (check.isOk) MagpieTheme.colors.ok else MagpieTheme.colors.warn,
         )
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = stringResource(check.titleRes), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringResource(check.titleRes),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MagpieTheme.colors.ink,
+            )
 
             // Объяснение показывается только когда есть проблема: список
             // из шести абзацев «всё хорошо» читать невозможно.
@@ -377,7 +403,7 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
                 Text(
                     text = stringResource(check.problemRes),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MagpieTheme.colors.ink2,
                 )
             }
         }
