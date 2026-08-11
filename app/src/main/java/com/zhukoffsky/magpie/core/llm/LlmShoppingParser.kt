@@ -2,6 +2,7 @@ package com.zhukoffsky.magpie.core.llm
 
 import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingPhraseParser
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -61,7 +62,11 @@ class LlmShoppingParser(
         return runCatching { json.decodeFromString<LlmShoppingList>(cleaned) }
             .getOrNull()
             ?.items
-            ?.map { it.trim() }
+            // Та же чистка, что и у правил. Промпт просит выбросить вводные
+            // слова, но модель делает это через раз: разрезав фразу верно,
+            // она вернула «купить хлеб» и «и наверное ещё фарш». Регулярка
+            // отрабатывает всегда, поэтому просьбе не доверяем.
+            ?.map(ShoppingPhraseParser::clean)
             ?.filter { it.isNotEmpty() }
             .orEmpty()
     }
@@ -82,12 +87,15 @@ class LlmShoppingParser(
             - знаков препинания во фразе нет: их не поставило распознавание
               речи, границы товаров нужно определить по смыслу;
             - НЕ дроби название одного товара из нескольких слов;
-            - выброси вводные глаголы («надо купить», «добавь», "buy");
+            - выброси вводные глаголы («надо купить», «добавь», "buy") и
+              слова-заминки в начале позиции («и», «ещё», «наверное», "also");
             - количество и единицы оставляй при товаре;
             - ничего не придумывай сверх сказанного.
 
             Примеры:
             «молоко хлеб яйца» -> {"items": ["молоко", "хлеб", "яйца"]}
+            «купить хлеб масло колбасу и наверное ещё фарш» ->
+              {"items": ["хлеб", "масло", "колбасу", "фарш"]}
             «хлеб бородинский» -> {"items": ["хлеб бородинский"]}
             «зубная паста и туалетная бумага» -> {"items": ["зубная паста", "туалетная бумага"]}
             «купи два литра молока и десяток яиц» -> {"items": ["два литра молока", "десяток яиц"]}

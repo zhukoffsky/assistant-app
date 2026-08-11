@@ -51,6 +51,7 @@ import com.zhukoffsky.magpie.feature.reminders.ui.dueLabel
 @Composable
 fun VoiceCaptureScreen(
     state: VoiceCaptureUiState,
+    target: VoiceTarget,
     onItemChange: (Int, String) -> Unit,
     onItemRemove: (Int) -> Unit,
     onTitleChange: (String) -> Unit,
@@ -68,7 +69,14 @@ fun VoiceCaptureScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = stringResource(R.string.voice_parsing),
+                    // Ожидание общее для обеих целей, а текст — нет: у
+                    // покупок никакого времени не разбирается.
+                    text = stringResource(
+                        when (target) {
+                            VoiceTarget.SHOPPING -> R.string.voice_parsing_shopping
+                            VoiceTarget.REMINDER -> R.string.voice_parsing
+                        },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MagpieTheme.colors.ink,
                     modifier = Modifier.padding(start = 12.dp),

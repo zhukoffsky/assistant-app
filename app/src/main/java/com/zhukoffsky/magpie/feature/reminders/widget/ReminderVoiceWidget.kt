@@ -25,7 +25,7 @@ import androidx.glance.layout.size
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.theme.magpieGlanceColors
+import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 
@@ -37,10 +37,8 @@ import com.zhukoffsky.magpie.core.voice.VoiceTarget
 class ReminderVoiceWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val colors = magpieGlanceColors(context)
-
         provideContent {
-            GlanceTheme(colors = colors) {
+            GlanceTheme(colors = MagpieGlanceColors) {
                 Column(
                     modifier = GlanceModifier
                         .fillMaxSize()

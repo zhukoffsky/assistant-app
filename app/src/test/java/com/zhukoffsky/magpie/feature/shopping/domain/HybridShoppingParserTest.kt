@@ -45,6 +45,21 @@ class HybridShoppingParserTest {
         assertFalse(llm.called)
     }
 
+    /**
+     * Случай, на котором сломалась первая версия: правила режут по союзу и
+     * возвращают две позиции, одна из которых — ком из четырёх продуктов.
+     * Раньше этого хватало, чтобы к модели не пойти.
+     */
+    @Test
+    fun `conjunction alone is not a reliable boundary`() = runTest {
+        val llm = FakeLlm(listOf("молоко", "мясо", "колбаса", "сыр", "салфетки"))
+
+        val items = parser(llm).parse("надо молоко мясо колбаса сыр и салфетки")
+
+        assertEquals(listOf("молоко", "мясо", "колбаса", "сыр", "салфетки"), items)
+        assertTrue("знаков препинания нет — границы известны только модели", llm.called)
+    }
+
     @Test
     fun `phrase without separators is split by the model`() = runTest {
         val llm = FakeLlm(listOf("молоко", "хлеб", "яйца"))

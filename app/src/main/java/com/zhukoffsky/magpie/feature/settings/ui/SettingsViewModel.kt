@@ -17,9 +17,6 @@ import com.zhukoffsky.magpie.core.sync.AuthorizationResult
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
 import com.zhukoffsky.magpie.core.sync.SyncSettings
 import com.zhukoffsky.magpie.core.sync.SyncTrigger
-import androidx.glance.appwidget.updateAll
-import com.zhukoffsky.magpie.feature.reminders.widget.ReminderVoiceWidget
-import com.zhukoffsky.magpie.feature.shopping.widget.ShoppingWidget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,8 +36,6 @@ class SettingsViewModel(
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
     private val appearance: AppearancePreferences,
-    /** Пересборка виджетов. Лямбдой, чтобы не тащить `Context` во ViewModel. */
-    private val refreshWidgets: suspend () -> Unit,
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode.stateIn(
@@ -55,18 +50,8 @@ class SettingsViewModel(
         initialValue = AppLanguage.SYSTEM,
     )
 
-    /**
-     * Тема применяется и к виджетам, но сами они об этом не узнают: подписка
-     * на настройки живёт внутри сессии Glance, а она заканчивается вместе с
-     * процессом. Поэтому после записи виджеты пересобираются явно — иначе на
-     * домашнем экране осталась бы прежняя тема до следующего изменения
-     * списка или перезагрузки.
-     */
     fun onThemeModeSelected(mode: ThemeMode) {
-        viewModelScope.launch {
-            appearance.setThemeMode(mode)
-            refreshWidgets()
-        }
+        viewModelScope.launch { appearance.setThemeMode(mode) }
     }
 
     fun onLanguageSelected(language: AppLanguage) {
@@ -103,12 +88,24 @@ class SettingsViewModel(
     fun onConnectGoogle() {
         viewModelScope.launch {
             syncer.enable()
+            authorizeThenSync()
+        }
+    }
 
-            when (val result = syncer.authorize()) {
-                is AuthorizationResult.Authorized -> syncTrigger.requestSync()
-                is AuthorizationResult.NeedsConsent -> _consentRequest.value = result.pendingIntent
-                is AuthorizationResult.Failed -> Unit // текст ошибки покажет следующая попытка
-            }
+    /**
+     * Спрашивает доступ и, если нужно согласие, поднимает системный экран.
+     *
+     * Запустить его может только активность, поэтому пройти этот шаг из
+     * фоновой задачи невозможно в принципе: `WorkManager` упирается в
+     * `consent_required`, записывает ошибку и завершается — и так каждый раз.
+     * Отсюда правило: очередь ставится **после** того, как доступ получен, а
+     * не вместо этого.
+     */
+    private suspend fun authorizeThenSync() {
+        when (val result = syncer.authorize()) {
+            is AuthorizationResult.Authorized -> syncTrigger.requestSync()
+            is AuthorizationResult.NeedsConsent -> _consentRequest.value = result.pendingIntent
+            is AuthorizationResult.Failed -> Unit // текст ошибки покажет следующая попытка
         }
     }
 
@@ -117,7 +114,15 @@ class SettingsViewModel(
         if (granted) syncTrigger.requestSync()
     }
 
-    fun onSyncNow() = syncTrigger.requestSync()
+    /**
+     * «Синхронизировать сейчас» раньше просто ставила задачу в очередь. Если
+     * согласие ещё не выдано, задача его не выспросит — экран согласия ей
+     * недоступен, — поэтому кнопка молча возвращала `consent_required` и
+     * ничего не меняла, сколько её ни нажимай.
+     */
+    fun onSyncNow() {
+        viewModelScope.launch { authorizeThenSync() }
+    }
 
     fun onDisconnectGoogle() {
         viewModelScope.launch { syncer.disable() }
@@ -138,10 +143,6 @@ class SettingsViewModel(
                     // Мимо AppContainer: DataStore всё равно один на процесс,
                     // так что дублирования не возникает.
                     appearance = AppearancePreferences(app),
-                    refreshWidgets = {
-                        ShoppingWidget().updateAll(app)
-                        ReminderVoiceWidget().updateAll(app)
-                    },
                 )
             }
         }

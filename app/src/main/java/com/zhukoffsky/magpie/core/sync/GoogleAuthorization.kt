@@ -46,10 +46,17 @@ class GoogleAuthorization(private val context: Context) : Authorizer {
             val token = result.accessToken
 
             when {
-                result.hasResolution() && pendingIntent != null ->
+                result.hasResolution() && pendingIntent != null -> {
+                    // Не ошибка, но и не успех: без этой строки шаг проходит
+                    // молча, и по логу непонятно, дошло ли дело до согласия.
+                    MagpieLog.i("sync: consent screen required")
                     AuthorizationResult.NeedsConsent(pendingIntent)
+                }
 
-                token != null -> AuthorizationResult.Authorized(token)
+                token != null -> {
+                    MagpieLog.i("sync: authorized")
+                    AuthorizationResult.Authorized(token)
+                }
 
                 else -> AuthorizationResult.Failed(null)
             }

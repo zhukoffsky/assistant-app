@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import kotlinx.coroutines.flow.first
 import org.junit.Test
 import java.time.Clock
 import java.time.DayOfWeek
@@ -61,6 +62,26 @@ class VoiceCaptureViewModelTest {
         assertEquals(
             VoiceCaptureUiState.ConfirmingItems(listOf("молоко", "хлеб", "яйца")),
             vm.uiState.value,
+        )
+    }
+
+    /**
+     * Регрессия: `Done` выставлялся до записи, активность на него
+     * закрывалась и отменяла `viewModelScope` посреди цикла — из пяти
+     * покупок сохранялись три. Проверяется и то, что `Done` наступает
+     * только после записи: именно этот порядок и потерялся.
+     */
+    @Test
+    fun `every dictated item is saved before the screen reports it is done`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+        vm.onRecognitionResult("молоко, хлеб, яйца, масло и сыр")
+
+        vm.onConfirm()
+
+        assertEquals(VoiceCaptureUiState.Done, vm.uiState.value)
+        assertEquals(
+            listOf("молоко", "хлеб", "яйца", "масло", "сыр"),
+            shoppingDao.observeAll().first().map { it.title },
         )
     }
 
