@@ -88,22 +88,6 @@ class MedsViewModel(
         return true
     }
 
-    /**
-     * История в виде текста для отправки куда угодно — врачу в мессенджер,
-     * себе в заметки. Формат CSV, чтобы открывалось таблицей.
-     */
-    fun historyAsCsv(): String {
-        val state = uiState.value
-        val course = state.course ?: return ""
-
-        return buildString {
-            appendLine("date,dose_mg,status")
-            state.history.asReversed().forEach { day ->
-                appendLine("${day.date},${day.doseMg},${day.status.name.lowercase()}")
-            }
-        }
-    }
-
     fun onTakenToday() {
         val course = uiState.value.course ?: return
         viewModelScope.launch {

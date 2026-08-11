@@ -20,7 +20,10 @@
     <string name="sync_disconnect">Отключить</string>
 
     <string name="diag_title">Проверка доставки</string>
-    <string name="diag_subtitle">Напоминание, которое не пришло, ничем не отличается от напоминания, которого не было. Здесь собрано всё, что система может тихо запретить.</string>
+    <string name="diag_subtitle">Эти запреты система ставит молча, и напоминание просто не придёт.</string>
+    <string name="diag_problems_title">Мешает доставке</string>
+    <string name="diag_all_good">Ничто не мешает доставке. Кнопка ниже присылает настоящее уведомление тем же путём, что и напоминание, — если сомневаетесь, проверьте.</string>
+    <string name="diag_test_hint">Проверить доставку можно прямо сейчас: уведомление придёт тем же путём, что и настоящее.</string>
     <string name="diag_fix">Исправить</string>
     <string name="diag_notifications">Уведомления разрешены</string>
     <string name="diag_notifications_problem">Не покажется вообще ничего — ни напоминания, ни приём таблеток.</string>
@@ -44,7 +47,6 @@
     <string name="med_doses_help">Через запятую, повторяется по кругу: 100, 75</string>
     <string name="med_time_value">Время приёма: %1$s</string>
     <string name="med_start_date_value">Дата начала: %1$s</string>
-    <string name="med_export">Экспорт истории</string>
     <string name="med_start_date_help">Задаёт фазу цикла: первая доза приходится на этот день</string>
     <string name="med_invalid_input">Проверь цикл доз: целые числа миллиграммов через запятую.</string>
     <string name="med_save">Сохранить</string>

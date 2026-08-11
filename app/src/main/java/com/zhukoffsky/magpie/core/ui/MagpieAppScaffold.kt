@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -51,7 +52,6 @@ import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 fun MagpieAppScaffold(
     onVoiceCapture: (VoiceTarget) -> Unit,
     onOpenFix: (DiagnosticFix) -> Unit,
-    onShareText: (String) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -91,7 +91,7 @@ fun MagpieAppScaffold(
                     // Экран таблеток голосового ввода не имеет: курс заводится
                     // один раз руками, диктовать там нечего.
                     composable(MagpieDestination.Meds.route) {
-                        MedsScreen(onShareText = onShareText)
+                        MedsScreen()
                     }
                     composable(MagpieDestination.Settings.route) {
                         SettingsScreen(onOpenFix = onOpenFix)
@@ -153,12 +153,18 @@ private fun GlassNavigationBar(
 
                 Box(
                     modifier = Modifier
+                        // `clip` обязан идти ПЕРЕД `selectable`: подсветка
+                        // нажатия рисуется там, где висит `selectable`, и без
+                        // подрезки расходилась прямоугольником поверх
+                        // скруглённой капсулы — при каждом тапе по вкладке
+                        // из-под неё выезжали углы.
+                        .clip(RoundedCornerShape(MagpieRadius.sm))
                         .selectable(
                             selected = selected,
                             role = Role.Tab,
                             onClick = { onSelect(destination) },
                         )
-                        .background(halo, RoundedCornerShape(MagpieRadius.sm))
+                        .background(halo)
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {

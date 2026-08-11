@@ -36,7 +36,6 @@ class MainActivity : ComponentActivity() {
                         startActivity(VoiceCaptureActivity.intent(this, target))
                     },
                     onOpenFix = ::openFix,
-                    onShareText = ::shareText,
                 )
             }
         }
@@ -57,17 +56,6 @@ class MainActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
-
-    /** Экспорт истории: отдаём текст системе, дальше пользователь решает сам. */
-    private fun shareText(text: String) {
-        if (text.isBlank()) return
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
-        }
-        startActivity(Intent.createChooser(intent, getString(R.string.med_export)))
     }
 
     private fun openFix(fix: DiagnosticFix) {
@@ -95,8 +83,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            /*
+             * Адресный диалог, а не общий список приложений.
+             *
+             * `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` открывает перечень
+             * всех приложений: себя надо найти по алфавиту, а переключатель
+             * там соседствует с «ограничить фоновую активность», хотя это
+             * разное. В белый список Doze — то, что читает проверка, — кладёт
+             * только «Без ограничений»; выставив соседний переключатель,
+             * человек видит, что проверка всё равно горит, и не понимает
+             * почему.
+             *
+             * `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` с `package:`
+             * показывает один системный вопрос и ставит ровно нужный флаг.
+             */
             DiagnosticFix.BATTERY_OPTIMIZATION -> startSettings(
-                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, appUri()),
             )
 
             DiagnosticFix.APP_SETTINGS -> startSettings(
