@@ -53,6 +53,32 @@ class ShoppingRepository(
         return true
     }
 
+    /**
+     * Добавляет сразу несколько позиций — результат одной диктовки.
+     *
+     * Не цикл по [add] снаружи: [onChanged] пересобирает виджет, и на пяти
+     * позициях это пять IPC-вызовов подряд. Запись становится настолько
+     * медленной, что успевает не вся, если вызывающий к тому моменту
+     * закрылся. Здесь виджет трогается один раз в конце.
+     */
+    suspend fun addAll(rawTitles: List<String>) {
+        var added = false
+        rawTitles.forEach { raw ->
+            val title = raw.trim()
+            if (title.isEmpty()) return@forEach
+
+            dao.insert(
+                ShoppingItemEntity(
+                    title = title,
+                    position = dao.maxPosition() + 1,
+                    createdAt = clock.instant(),
+                ),
+            )
+            added = true
+        }
+        if (added) onChanged()
+    }
+
     suspend fun setChecked(id: Long, isChecked: Boolean) {
         dao.setChecked(
             id = id,

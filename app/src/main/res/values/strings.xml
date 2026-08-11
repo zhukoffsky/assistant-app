@@ -8,6 +8,7 @@
     <string name="nav_settings">Settings</string>
 
     <string name="voice_parsing">Working out the time…</string>
+    <string name="voice_parsing_shopping">Working out the list…</string>
 
 
     <string name="sync_title">Google Tasks</string>

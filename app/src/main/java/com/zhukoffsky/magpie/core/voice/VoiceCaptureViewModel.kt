@@ -148,25 +148,41 @@ class VoiceCaptureViewModel(
         _uiState.value = current.copy(title = value)
     }
 
+    /**
+     * Защита от повторного тапа по «Сохранить».
+     *
+     * Раньше эту роль играл перевод состояния в `Done` перед записью — и
+     * стоил потери данных: на `Done` активность закрывается, вместе с ней
+     * отменяется `viewModelScope`, и цикл записи обрывался на середине.
+     * Пока записей было мало и они были быстрыми, это проскакивало; стоило
+     * записи подорожать, как из пяти покупок сохранялись три.
+     *
+     * Теперь `Done` выставляется после записи, а от второго тапа защищает
+     * этот флаг.
+     */
+    private var saving = false
+
     fun onConfirm() {
-        // Состояние меняем до записи: повторный тап по «Сохранить» иначе
-        // продублирует запись.
+        if (saving) return
+
         when (val current = _uiState.value) {
             is VoiceCaptureUiState.ConfirmingItems -> {
-                _uiState.value = VoiceCaptureUiState.Done
+                saving = true
                 viewModelScope.launch {
-                    current.items.forEach { shoppingRepository.add(it) }
+                    shoppingRepository.addAll(current.items)
+                    _uiState.value = VoiceCaptureUiState.Done
                 }
             }
 
             is VoiceCaptureUiState.ConfirmingReminder -> {
-                _uiState.value = VoiceCaptureUiState.Done
+                saving = true
                 viewModelScope.launch {
                     reminderRepository.add(
                         title = current.title,
                         dueAt = current.dueAt.toInstant(),
                         repeat = current.repeat,
                     )
+                    _uiState.value = VoiceCaptureUiState.Done
                 }
             }
 

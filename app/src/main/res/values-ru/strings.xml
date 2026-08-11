@@ -8,6 +8,7 @@
     <string name="nav_settings">Настройки</string>
 
     <string name="voice_parsing">Разбираю время…</string>
+    <string name="voice_parsing_shopping">Разбираю список…</string>
 
 
     <string name="sync_title">Google Tasks</string>
