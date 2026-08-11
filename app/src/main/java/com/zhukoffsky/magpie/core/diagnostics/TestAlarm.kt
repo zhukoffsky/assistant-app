@@ -3,6 +3,7 @@ package com.zhukoffsky.magpie.core.diagnostics
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -52,6 +53,9 @@ class TestAlarmScheduler(private val context: Context) {
 
 class TestAlarmReceiver : BroadcastReceiver() {
 
+    // Здесь проверки нет намеренно, см. комментарий у `notify` ниже:
+    // молчаливый отказ и есть результат теста.
+    @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
         val notification = NotificationCompat.Builder(context, MagpieNotifications.CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)

@@ -32,21 +32,31 @@
         </intent>
     </queries>
 
+    <!--
+      Атрибуты для новых API объявлены намеренно: на старых устройствах они
+      просто игнорируются, а на новых нужны — `localeConfig` включает системный
+      экран «Язык приложения», без которого уведомления не перевести вовсе.
+
+      `fullBackupContent` в пару к `dataExtractionRules` lint просит зря:
+      до Android 12 всё закрывает `allowBackup="false"`, и правила оттуда
+      вообще не читаются.
+    -->
     <application
         android:name=".MagpieApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Magpie">
+        android:theme="@style/Theme.Magpie"
+        tools:ignore="UnusedAttribute,DataExtractionRules">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.Magpie">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

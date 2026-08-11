@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.voice.tile
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
@@ -51,7 +52,11 @@ abstract class VoiceTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startActivityAndCollapse(pendingIntent)
         } else {
+            // Устаревший вариант нужен именно здесь: до Android 14 другого
+            // нет. `@Suppress` глушит компилятор, `@SuppressLint` — проверку
+            // lint, у неё отдельный идентификатор.
             @Suppress("DEPRECATION")
+            @SuppressLint("StartActivityAndCollapseDeprecated")
             startActivityAndCollapse(VoiceCaptureActivity.intent(this, target))
         }
     }

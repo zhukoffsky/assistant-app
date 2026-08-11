@@ -1,6 +1,7 @@
 package com.zhukoffsky.magpie.core.notification
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -36,8 +37,6 @@ object MagpieNotifications {
 
     /** Каналы создаются при старте процесса: повторный вызов ничего не портит. */
     fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
         val manager = context.getSystemService(NotificationManager::class.java)
 
         manager.createNotificationChannel(
@@ -62,6 +61,9 @@ object MagpieNotifications {
      * Идентификатор один на всё приложение: активный приём всегда один,
      * и старое уведомление должно замещаться, а не копиться.
      */
+    // Разрешение проверяет `canPost` строкой ниже, но lint не прослеживает
+    // проверку через вызов функции и считает `notify` незащищённым.
+    @SuppressLint("MissingPermission")
     fun showDose(context: Context, course: MedCourse, intake: MedIntake) {
         if (!canPost(context)) {
             MagpieLog.w("notify: dose suppressed, no POST_NOTIFICATIONS")
@@ -101,6 +103,9 @@ object MagpieNotifications {
         NotificationManagerCompat.from(context).cancel(DOSE_NOTIFICATION_ID)
     }
 
+    // Разрешение проверяет `canPost` строкой ниже, но lint не прослеживает
+    // проверку через вызов функции и считает `notify` незащищённым.
+    @SuppressLint("MissingPermission")
     fun showReminder(context: Context, reminder: Reminder) {
         if (!canPost(context)) {
             MagpieLog.w("notify: reminder=${reminder.id} suppressed, no POST_NOTIFICATIONS")

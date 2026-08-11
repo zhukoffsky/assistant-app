@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -212,8 +215,11 @@ private fun BottomCard(content: @Composable () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                // Карточка прижата к низу, поэтому жест-полоса ложилась прямо
+                // на неё, срезая нижнее скругление и кнопку «Сохранить».
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(14.dp)
-                .then(staggeredEntrance(index = 0))
+                .staggeredEntrance(index = 0)
                 .background(
                     color = if (blurred) {
                         MagpieTheme.colors.glassOpaque

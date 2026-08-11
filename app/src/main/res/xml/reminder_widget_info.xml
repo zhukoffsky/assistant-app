@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  targetCell* работают с Android 12 и задают размер в клетках сетки
+  лаунчера. На более старых система берёт min-размеры, поэтому атрибуты
+  оставлены намеренно.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
     android:description="@string/widget_reminder_description"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minHeight="60dp"

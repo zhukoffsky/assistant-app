@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.ui
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.view.ContextThemeWrapper
 import androidx.compose.runtime.Composable
@@ -28,19 +29,33 @@ import java.util.Locale
  * Android 13+ есть системный экран «Язык приложения»: он работает благодаря
  * `android:localeConfig` в манифесте и от этой настройки не зависит.
  */
+// Проверка требует вызовов Play Core: при раздаче через app bundle язык
+// приезжает отдельным модулем, и его надо скачать перед применением. Здесь
+// это неприменимо — приложение ставится APK напрямую, оба перевода лежат
+// внутри (см. `locales_config.xml`), качать нечего.
+@SuppressLint("AppBundleLocaleChanges")
 @Composable
 fun MagpieLanguage(language: AppLanguage, content: @Composable () -> Unit) {
     val tag = language.tag
-    if (tag == null) {
-        content()
-        return
-    }
-
     val context = LocalContext.current
     val base = LocalConfiguration.current
 
+    /*
+     * Ранний выход при `tag == null` здесь был, и он ломал навигацию.
+     *
+     * `content()` вызывался из ДРУГОГО места дерева, чем ветка с
+     * `CompositionLocalProvider`. Переключение «Как в системе» ⇄ «English»
+     * переносило поддерево между двумя разными позициями композиции, Compose
+     * выбрасывал старое целиком, и вместе с ним пропадало состояние `NavHost`:
+     * пользователь менял язык в «Настройках» и оказывался в «Покупках».
+     *
+     * Теперь вызов один на оба случая, а «как в системе» просто отдаёт
+     * исходные значения.
+     */
     val configuration = remember(base, tag) {
-        Configuration(base).apply { setLocale(Locale.forLanguageTag(tag)) }
+        if (tag == null) base else Configuration(base).apply {
+            setLocale(Locale.forLanguageTag(tag))
+        }
     }
 
     /*
@@ -56,7 +71,11 @@ fun MagpieLanguage(language: AppLanguage, content: @Composable () -> Unit) {
      * Обёртка оставляет активность на месте и при этом подменяет конфигурацию.
      */
     val localized = remember(context, configuration) {
-        ContextThemeWrapper(context, 0).apply { applyOverrideConfiguration(configuration) }
+        if (configuration === base) {
+            context
+        } else {
+            ContextThemeWrapper(context, 0).apply { applyOverrideConfiguration(configuration) }
+        }
     }
 
     CompositionLocalProvider(

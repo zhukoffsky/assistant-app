@@ -1,6 +1,7 @@
 package com.zhukoffsky.magpie.core.di
 
 import android.content.Context
+import androidx.glance.appwidget.updateAll
 import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -28,6 +29,7 @@ import com.zhukoffsky.magpie.feature.reminders.alarm.AlarmManagerReminderSchedul
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
+import com.zhukoffsky.magpie.feature.shopping.widget.ShoppingWidget
 
 /**
  * Ручной контейнер зависимостей. Живёт столько же, сколько процесс.
@@ -51,7 +53,14 @@ class AppContainer(context: Context) {
     val reminderDao by lazy { database.reminderDao() }
     val medDao by lazy { database.medDao() }
 
-    val shoppingRepository by lazy { ShoppingRepository(shoppingDao) }
+    val shoppingRepository by lazy {
+        // Каждая запись в список толкает виджет: подписки на Room ему хватает
+        // только пока жива сессия Glance, то есть пока жив процесс.
+        ShoppingRepository(
+            dao = shoppingDao,
+            onChanged = { ShoppingWidget().updateAll(appContext) },
+        )
+    }
 
     val syncPreferences by lazy { SyncPreferences(appContext) }
     val syncTrigger: SyncTrigger by lazy { WorkManagerSyncTrigger(appContext) }

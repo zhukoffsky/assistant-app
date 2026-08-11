@@ -24,6 +24,23 @@ jobs:
       - name: Unit tests
         run: ./gradlew --no-daemon test
 
+      # Единственное место, где вообще запускается lint: локально он требует
+      # сети за `lint-gradle`, которого нет в offline-кэше, а собирать проект
+      # приходится с `--offline`. Без этого шага проверки вроде `NewApi` не
+      # делает никто, и вызов свежего API проходит до устройства незамеченным.
+      - name: Lint
+        run: ./gradlew --no-daemon lintDebug
+
+      # В лог падения попадает только первая ошибка — остальные придётся
+      # искать в отчёте.
+      - name: Upload lint report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+
       - name: Assemble debug APK
         run: ./gradlew --no-daemon assembleDebug
 
