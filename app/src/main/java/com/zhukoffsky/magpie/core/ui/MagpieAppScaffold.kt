@@ -3,6 +3,9 @@ package com.zhukoffsky.magpie.core.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,6 +117,10 @@ private fun GlassNavigationBar(
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
+            // Инсет жест-полосы, иначе таблетка ложится вплотную к ней и обе
+            // читаются как одна деталь: край стекла и белая черта сливаются.
+            // Порядок важен — инсет до собственных отступов, иначе он их съест.
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = 12.dp, vertical = 10.dp)
             .height(66.dp),
         shape = RoundedCornerShape(MagpieRadius.md),
