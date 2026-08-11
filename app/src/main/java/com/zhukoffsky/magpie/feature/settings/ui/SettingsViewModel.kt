@@ -88,12 +88,24 @@ class SettingsViewModel(
     fun onConnectGoogle() {
         viewModelScope.launch {
             syncer.enable()
+            authorizeThenSync()
+        }
+    }
 
-            when (val result = syncer.authorize()) {
-                is AuthorizationResult.Authorized -> syncTrigger.requestSync()
-                is AuthorizationResult.NeedsConsent -> _consentRequest.value = result.pendingIntent
-                is AuthorizationResult.Failed -> Unit // текст ошибки покажет следующая попытка
-            }
+    /**
+     * Спрашивает доступ и, если нужно согласие, поднимает системный экран.
+     *
+     * Запустить его может только активность, поэтому пройти этот шаг из
+     * фоновой задачи невозможно в принципе: `WorkManager` упирается в
+     * `consent_required`, записывает ошибку и завершается — и так каждый раз.
+     * Отсюда правило: очередь ставится **после** того, как доступ получен, а
+     * не вместо этого.
+     */
+    private suspend fun authorizeThenSync() {
+        when (val result = syncer.authorize()) {
+            is AuthorizationResult.Authorized -> syncTrigger.requestSync()
+            is AuthorizationResult.NeedsConsent -> _consentRequest.value = result.pendingIntent
+            is AuthorizationResult.Failed -> Unit // текст ошибки покажет следующая попытка
         }
     }
 
@@ -102,7 +114,15 @@ class SettingsViewModel(
         if (granted) syncTrigger.requestSync()
     }
 
-    fun onSyncNow() = syncTrigger.requestSync()
+    /**
+     * «Синхронизировать сейчас» раньше просто ставила задачу в очередь. Если
+     * согласие ещё не выдано, задача его не выспросит — экран согласия ей
+     * недоступен, — поэтому кнопка молча возвращала `consent_required` и
+     * ничего не меняла, сколько её ни нажимай.
+     */
+    fun onSyncNow() {
+        viewModelScope.launch { authorizeThenSync() }
+    }
 
     fun onDisconnectGoogle() {
         viewModelScope.launch { syncer.disable() }
