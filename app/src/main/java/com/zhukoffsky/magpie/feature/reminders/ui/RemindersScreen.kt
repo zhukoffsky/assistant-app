@@ -44,7 +44,6 @@ import com.zhukoffsky.magpie.core.ui.GlassSurface
 import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
-import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.core.ui.appLocale
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
@@ -62,12 +61,6 @@ fun RemindersScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Reminder?>(null) }
-
-    UndoDeleteEffect(
-        deleted = viewModel.undoDelete.collectAsStateWithLifecycle().value,
-        onUndo = viewModel::onUndoDelete,
-        onDismiss = viewModel::onUndoDismissed,
-    )
 
     editing?.let { reminder ->
         EditReminderDialog(

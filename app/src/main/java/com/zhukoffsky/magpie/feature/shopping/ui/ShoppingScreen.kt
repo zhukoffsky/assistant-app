@@ -37,7 +37,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.GlassSurface
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
-import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -50,12 +49,6 @@ fun ShoppingScreen(
     viewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    UndoDeleteEffect(
-        deleted = viewModel.undoDelete.collectAsStateWithLifecycle().value,
-        onUndo = viewModel::onUndoDelete,
-        onDismiss = viewModel::onUndoDismissed,
-    )
 
     ShoppingScreenContent(
         state = state,

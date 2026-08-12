@@ -12,7 +12,6 @@ import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -69,26 +68,9 @@ class RemindersViewModel(
         viewModelScope.launch { repository.setDone(reminder.id, isDone) }
     }
 
-    private val _undoDelete = MutableStateFlow<Reminder?>(null)
-    val undoDelete: StateFlow<Reminder?> = _undoDelete.asStateFlow()
-
+    /** Удаление окончательное — см. тот же выбор в списке покупок. */
     fun onDelete(reminder: Reminder) {
-        viewModelScope.launch {
-            repository.delete(reminder.id)
-            _undoDelete.value = reminder
-        }
-    }
-
-    fun onUndoDelete() {
-        val reminder = _undoDelete.value ?: return
-        _undoDelete.value = null
-        viewModelScope.launch {
-            repository.add(reminder.title, reminder.dueAt, reminder.repeat)
-        }
-    }
-
-    fun onUndoDismissed() {
-        _undoDelete.value = null
+        viewModelScope.launch { repository.delete(reminder.id) }
     }
 
     fun onEdit(reminder: Reminder, title: String, dueAt: ZonedDateTime) {
