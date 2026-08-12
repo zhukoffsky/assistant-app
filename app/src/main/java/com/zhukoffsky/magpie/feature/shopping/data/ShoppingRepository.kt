@@ -60,23 +60,26 @@ class ShoppingRepository(
      * позициях это пять IPC-вызовов подряд. Запись становится настолько
      * медленной, что успевает не вся, если вызывающий к тому моменту
      * закрылся. Здесь виджет трогается один раз в конце.
+     *
+     * @return идентификаторы записанного — по ним отменяют диктовку.
      */
-    suspend fun addAll(rawTitles: List<String>) {
-        var added = false
-        rawTitles.forEach { raw ->
+    suspend fun addAll(rawTitles: List<String>): List<Long> {
+        val ids = rawTitles.mapNotNull { raw ->
             val title = raw.trim()
-            if (title.isEmpty()) return@forEach
-
-            dao.insert(
-                ShoppingItemEntity(
-                    title = title,
-                    position = dao.maxPosition() + 1,
-                    createdAt = clock.instant(),
-                ),
-            )
-            added = true
+            if (title.isEmpty()) {
+                null
+            } else {
+                dao.insert(
+                    ShoppingItemEntity(
+                        title = title,
+                        position = dao.maxPosition() + 1,
+                        createdAt = clock.instant(),
+                    ),
+                )
+            }
         }
-        if (added) onChanged()
+        if (ids.isNotEmpty()) onChanged()
+        return ids
     }
 
     suspend fun setChecked(id: Long, isChecked: Boolean) {
@@ -90,6 +93,14 @@ class ShoppingRepository(
 
     suspend fun delete(id: Long) {
         dao.deleteById(id)
+        onChanged()
+    }
+
+    /** Откат одной диктовки: виджет трогается один раз, как и при записи. */
+    suspend fun deleteAll(ids: List<Long>) {
+        if (ids.isEmpty()) return
+
+        ids.forEach { dao.deleteById(it) }
         onChanged()
     }
 

@@ -81,10 +81,7 @@ class VoiceCaptureActivity : ComponentActivity() {
                 VoiceCaptureScreen(
                     state = state,
                     target = target,
-                    onItemChange = viewModel::onItemChange,
-                    onItemRemove = viewModel::onItemRemove,
-                    onTitleChange = viewModel::onTitleChange,
-                    onConfirm = viewModel::onConfirm,
+                    onUndo = viewModel::onUndo,
                     onCancel = ::finish,
                     onRetry = viewModel::onRetry,
                 )

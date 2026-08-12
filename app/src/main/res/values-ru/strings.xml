@@ -91,12 +91,12 @@
     <string name="voice_input">Продиктовать</string>
     <string name="voice_prompt_shopping">Что купить?</string>
     <string name="voice_prompt_reminder">О чём напомнить?</string>
-    <string name="voice_confirm_shopping_title">Добавить в список покупок</string>
-    <string name="voice_confirm_reminder_title">Новое напоминание</string>
-    <string name="voice_remove_item">Убрать</string>
-    <string name="voice_save">Сохранить</string>
-    <string name="voice_cancel">Отмена</string>
+    <string name="voice_saved_shopping_title">Добавлено в список</string>
+    <string name="voice_saved_reminder_title">Напомню</string>
+    <string name="voice_undo">Отменить</string>
     <string name="voice_retry">Повторить</string>
+    <string name="date_today">Сегодня</string>
+    <string name="date_tomorrow">Завтра</string>
     <string name="voice_close">Закрыть</string>
     <string name="voice_error_nothing_recognized">Ничего не распознано. Для распознавания речи нужен интернет.</string>
     <string name="voice_error_no_recognizer">На устройстве нет приложения для распознавания речи.</string>

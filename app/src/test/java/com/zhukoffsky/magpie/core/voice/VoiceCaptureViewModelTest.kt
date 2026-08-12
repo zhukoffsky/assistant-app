@@ -37,10 +37,13 @@ class VoiceCaptureViewModelTest {
     private val shoppingDao = FakeShoppingDao()
     private val reminderDao = FakeReminderDao()
 
-    private fun viewModel(target: VoiceTarget) = VoiceCaptureViewModel(
+    private fun viewModel(
+        target: VoiceTarget,
+        scheduler: ReminderScheduler = RecordingScheduler(),
+    ) = VoiceCaptureViewModel(
         target = target,
         shoppingRepository = ShoppingRepository(shoppingDao, clock),
-        reminderRepository = ReminderRepository(reminderDao, NoopScheduler, clock),
+        reminderRepository = ReminderRepository(reminderDao, scheduler, clock),
         parser = HybridPhraseParser(rules = RuleBasedPhraseParser(), llm = null),
         // Без LLM: в тестах сети нет, а правил хватает для фраз с запятыми.
         shoppingParser = RuleBasedShoppingParser(),
@@ -54,35 +57,67 @@ class VoiceCaptureViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `recognised phrase becomes an editable list`() {
+    fun `a recognised phrase is written immediately, without waiting for a tap`() = runTest {
         val vm = viewModel(VoiceTarget.SHOPPING)
 
         vm.onRecognitionResult("молоко, хлеб и яйца")
 
+        val state = vm.uiState.value as VoiceCaptureUiState.SavedItems
+        assertEquals(listOf("молоко", "хлеб", "яйца"), state.titles)
         assertEquals(
-            VoiceCaptureUiState.ConfirmingItems(listOf("молоко", "хлеб", "яйца")),
-            vm.uiState.value,
+            listOf("молоко", "хлеб", "яйца"),
+            shoppingDao.observeAll().first().map { it.title },
         )
     }
 
     /**
      * Регрессия: `Done` выставлялся до записи, активность на него
      * закрывалась и отменяла `viewModelScope` посреди цикла — из пяти
-     * покупок сохранялись три. Проверяется и то, что `Done` наступает
-     * только после записи: именно этот порядок и потерялся.
+     * покупок сохранялись три. Порядок «сначала запись, потом закрытие»
+     * с автозакрытием стал ещё важнее: тапа, который его удерживал, больше нет.
      */
     @Test
-    fun `every dictated item is saved before the screen reports it is done`() = runTest {
+    fun `every dictated item is saved before the card appears`() = runTest {
         val vm = viewModel(VoiceTarget.SHOPPING)
+
         vm.onRecognitionResult("молоко, хлеб, яйца, масло и сыр")
 
-        vm.onConfirm()
-
-        assertEquals(VoiceCaptureUiState.Done, vm.uiState.value)
         assertEquals(
             listOf("молоко", "хлеб", "яйца", "масло", "сыр"),
             shoppingDao.observeAll().first().map { it.title },
         )
+    }
+
+    @Test
+    fun `undo removes everything the dictation added`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+        vm.onRecognitionResult("молоко, хлеб")
+
+        vm.onUndo()
+
+        assertEquals(emptyList<String>(), shoppingDao.items.value.map { it.title })
+        assertEquals(VoiceCaptureUiState.Done, vm.uiState.value)
+    }
+
+    @Test
+    fun `undo leaves items dictated earlier alone`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+        vm.onRecognitionResult("молоко")
+        viewModel(VoiceTarget.SHOPPING).onRecognitionResult("хлеб, яйца")
+
+        vm.onUndo()
+
+        assertEquals(listOf("хлеб", "яйца"), shoppingDao.items.value.map { it.title })
+    }
+
+    @Test
+    fun `a second recognition result does not write twice`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+
+        vm.onRecognitionResult("молоко")
+        vm.onRecognitionResult("молоко")
+
+        assertEquals(listOf("молоко"), shoppingDao.items.value.map { it.title })
     }
 
     @Test
@@ -98,7 +133,7 @@ class VoiceCaptureViewModelTest {
     }
 
     @Test
-    fun `phrase with no usable words is a failure too`() {
+    fun `phrase with no usable words is a failure and writes nothing`() {
         val vm = viewModel(VoiceTarget.SHOPPING)
 
         vm.onRecognitionResult("  ,  , ")
@@ -107,94 +142,36 @@ class VoiceCaptureViewModelTest {
             VoiceCaptureUiState.Failed(VoiceFailure.NOTHING_RECOGNIZED),
             vm.uiState.value,
         )
+        assertEquals(emptyList<String>(), shoppingDao.items.value.map { it.title })
     }
 
     @Test
-    fun `editing replaces a single item`() {
-        val vm = viewModel(VoiceTarget.SHOPPING)
-        vm.onRecognitionResult("молоко и хлеб")
-
-        vm.onItemChange(1, "хлеб бородинский")
-
-        assertEquals(
-            VoiceCaptureUiState.ConfirmingItems(listOf("молоко", "хлеб бородинский")),
-            vm.uiState.value,
-        )
-    }
-
-    @Test
-    fun `removing the last item closes the screen`() {
-        val vm = viewModel(VoiceTarget.SHOPPING)
-        vm.onRecognitionResult("молоко")
-
-        vm.onItemRemove(0)
-
-        assertEquals(VoiceCaptureUiState.Done, vm.uiState.value)
-    }
-
-    @Test
-    fun `confirm writes every item to the repository`() = runTest {
-        val vm = viewModel(VoiceTarget.SHOPPING)
-        vm.onRecognitionResult("молоко, хлеб")
-
-        vm.onConfirm()
-
-        assertEquals(listOf("молоко", "хлеб"), shoppingDao.items.value.map { it.title })
-        assertEquals(VoiceCaptureUiState.Done, vm.uiState.value)
-    }
-
-    @Test
-    fun `double tap on save does not duplicate items`() = runTest {
-        val vm = viewModel(VoiceTarget.SHOPPING)
-        vm.onRecognitionResult("молоко")
-
-        vm.onConfirm()
-        vm.onConfirm()
-
-        assertEquals(listOf("молоко"), shoppingDao.items.value.map { it.title })
-    }
-
-    @Test
-    fun `reminder target parses date and repeat out of the phrase`() {
+    fun `reminder is stored with the parsed date and repeat`() = runTest {
         val vm = viewModel(VoiceTarget.REMINDER)
 
         vm.onRecognitionResult("каждый вторник вынести мусор")
 
-        assertEquals(
-            VoiceCaptureUiState.ConfirmingReminder(
-                title = "вынести мусор",
-                dueAt = ZonedDateTime.of(2026, 8, 11, 9, 0, 0, 0, zone),
-                repeat = RepeatRule.Weekly(setOf(DayOfWeek.TUESDAY)),
-            ),
-            vm.uiState.value,
-        )
-    }
-
-    @Test
-    fun `editing the reminder title keeps the parsed time`() {
-        val vm = viewModel(VoiceTarget.REMINDER)
-        vm.onRecognitionResult("завтра в 9 позвонить")
-
-        vm.onTitleChange("позвонить в поликлинику")
-
-        val state = vm.uiState.value as VoiceCaptureUiState.ConfirmingReminder
-        assertEquals("позвонить в поликлинику", state.title)
+        val state = vm.uiState.value as VoiceCaptureUiState.SavedReminder
+        assertEquals("вынести мусор", state.title)
         assertEquals(ZonedDateTime.of(2026, 8, 11, 9, 0, 0, 0, zone), state.dueAt)
-    }
-
-    @Test
-    fun `confirming a reminder stores it`() = runTest {
-        val vm = viewModel(VoiceTarget.REMINDER)
-        vm.onRecognitionResult("завтра в 9 позвонить")
-
-        vm.onConfirm()
+        assertEquals(RepeatRule.Weekly(setOf(DayOfWeek.TUESDAY)), state.repeat)
 
         val stored = reminderDao.items.value.single()
-        assertEquals("позвонить", stored.title)
-        assertEquals(
-            ZonedDateTime.of(2026, 8, 11, 9, 0, 0, 0, zone).toInstant(),
-            stored.dueAt,
-        )
+        assertEquals("вынести мусор", stored.title)
+        assertEquals(ZonedDateTime.of(2026, 8, 11, 9, 0, 0, 0, zone).toInstant(), stored.dueAt)
+    }
+
+    @Test
+    fun `undo removes the reminder and takes its alarm down with it`() = runTest {
+        val scheduler = RecordingScheduler()
+        val vm = viewModel(VoiceTarget.REMINDER, scheduler)
+        vm.onRecognitionResult("завтра в 9 позвонить")
+        val id = (vm.uiState.value as VoiceCaptureUiState.SavedReminder).id
+
+        vm.onUndo()
+
+        assertEquals(emptyList<String>(), reminderDao.items.value.map { it.title })
+        assertEquals(setOf(id), scheduler.cancelled)
     }
 
     @Test
@@ -216,9 +193,13 @@ class VoiceCaptureViewModelTest {
         assertEquals(false, vm.shouldStartRecognition())
     }
 
-    private object NoopScheduler : ReminderScheduler {
+    private class RecordingScheduler : ReminderScheduler {
+        val cancelled = mutableSetOf<Long>()
+
         override fun schedule(id: Long, at: Instant) = Unit
         override fun scheduleSnooze(id: Long, at: Instant) = Unit
-        override fun cancel(id: Long) = Unit
+        override fun cancel(id: Long) {
+            cancelled += id
+        }
     }
 }

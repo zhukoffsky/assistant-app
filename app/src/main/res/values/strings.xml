@@ -91,12 +91,12 @@
     <string name="voice_input">Dictate</string>
     <string name="voice_prompt_shopping">What to buy?</string>
     <string name="voice_prompt_reminder">What should I remind you about?</string>
-    <string name="voice_confirm_shopping_title">Add to the shopping list</string>
-    <string name="voice_confirm_reminder_title">New reminder</string>
-    <string name="voice_remove_item">Remove</string>
-    <string name="voice_save">Save</string>
-    <string name="voice_cancel">Cancel</string>
+    <string name="voice_saved_shopping_title">Added to the list</string>
+    <string name="voice_saved_reminder_title">I will remind you</string>
+    <string name="voice_undo">Undo</string>
     <string name="voice_retry">Retry</string>
+    <string name="date_today">Today</string>
+    <string name="date_tomorrow">Tomorrow</string>
     <string name="voice_close">Close</string>
     <string name="voice_error_nothing_recognized">Nothing was recognised. Speech recognition needs an internet connection.</string>
     <string name="voice_error_no_recognizer">This device has no speech recognition app.</string>

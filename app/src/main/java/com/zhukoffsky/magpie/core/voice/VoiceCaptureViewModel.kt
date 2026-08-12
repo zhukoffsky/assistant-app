@@ -11,6 +11,8 @@ import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,11 +36,15 @@ sealed interface VoiceCaptureUiState {
     /** Фраза распознана, идёт разбор. Может занять секунду-две, если зовём LLM. */
     data object Parsing : VoiceCaptureUiState
 
-    /** Распознан список покупок; ждём подтверждения и правок. */
-    data class ConfirmingItems(val items: List<String>) : VoiceCaptureUiState
+    /**
+     * Покупки уже в списке; карточка показывает, что записалось, и три
+     * секунды ждёт отмены.
+     */
+    data class SavedItems(val titles: List<String>, val ids: List<Long>) : VoiceCaptureUiState
 
-    /** Распознано напоминание; ждём подтверждения. */
-    data class ConfirmingReminder(
+    /** Напоминание уже стоит; карточка показывает время и ждёт отмены. */
+    data class SavedReminder(
+        val id: Long,
         val title: String,
         val dueAt: ZonedDateTime,
         val repeat: RepeatRule?,
@@ -46,7 +52,7 @@ sealed interface VoiceCaptureUiState {
 
     data class Failed(val reason: VoiceFailure) : VoiceCaptureUiState
 
-    /** Сохранено, экран пора закрывать. */
+    /** Экран пора закрывать. */
     data object Done : VoiceCaptureUiState
 }
 
@@ -79,50 +85,89 @@ class VoiceCaptureViewModel(
 
     /** @param spoken распознанная фраза; null — отмена, ошибка или тишина. */
     fun onRecognitionResult(spoken: String?) {
-        when (target) {
-            VoiceTarget.SHOPPING -> {
-                val phrase = spoken?.trim().orEmpty()
-                if (phrase.isEmpty()) {
-                    _uiState.value = failure()
-                    return
-                }
+        val phrase = spoken?.trim().orEmpty()
+        if (phrase.isEmpty()) {
+            _uiState.value = failure()
+            return
+        }
+        if (saving) return
+        saving = true
 
-                // Как и у напоминаний, разбор асинхронный: правила отвечают
-                // мгновенно, но фраза без разделителей уходит в сеть.
-                _uiState.value = VoiceCaptureUiState.Parsing
-                viewModelScope.launch {
-                    val items = shoppingParser.parse(phrase)
-                    _uiState.value = if (items.isEmpty()) {
-                        failure()
-                    } else {
-                        VoiceCaptureUiState.ConfirmingItems(items)
-                    }
-                }
+        // Разбор асинхронный: правила отвечают мгновенно, но фраза, которой
+        // они не осилили, уходит в сеть к модели.
+        _uiState.value = VoiceCaptureUiState.Parsing
+
+        viewModelScope.launch {
+            val saved = when (target) {
+                VoiceTarget.SHOPPING -> saveItems(phrase)
+                VoiceTarget.REMINDER -> saveReminder(phrase)
             }
 
-            VoiceTarget.REMINDER -> {
-                val phrase = spoken?.trim().orEmpty()
-                if (phrase.isEmpty()) {
-                    _uiState.value = failure()
-                    return
-                }
-
-                // Разбор стал асинхронным: правила отвечают мгновенно, но
-                // при откате на LLM это сетевой вызов.
-                _uiState.value = VoiceCaptureUiState.Parsing
-                viewModelScope.launch {
-                    val parsed = parser.parse(phrase, ZonedDateTime.now(clock))
-                    _uiState.value = if (parsed == null) {
-                        failure()
-                    } else {
-                        VoiceCaptureUiState.ConfirmingReminder(
-                            title = parsed.title,
-                            dueAt = parsed.dueAt,
-                            repeat = parsed.repeat,
-                        )
-                    }
-                }
+            if (saved == null) {
+                saving = false
+                _uiState.value = failure()
+                return@launch
             }
+
+            _uiState.value = saved
+            startAutoClose()
+        }
+    }
+
+    private suspend fun saveItems(phrase: String): VoiceCaptureUiState? {
+        val titles = shoppingParser.parse(phrase)
+        if (titles.isEmpty()) return null
+
+        val ids = shoppingRepository.addAll(titles)
+        if (ids.isEmpty()) return null
+
+        return VoiceCaptureUiState.SavedItems(titles = titles, ids = ids)
+    }
+
+    private suspend fun saveReminder(phrase: String): VoiceCaptureUiState? {
+        val parsed = parser.parse(phrase, ZonedDateTime.now(clock)) ?: return null
+        val id = reminderRepository.add(
+            title = parsed.title,
+            dueAt = parsed.dueAt.toInstant(),
+            repeat = parsed.repeat,
+        ) ?: return null
+
+        return VoiceCaptureUiState.SavedReminder(
+            id = id,
+            title = parsed.title,
+            dueAt = parsed.dueAt,
+            repeat = parsed.repeat,
+        )
+    }
+
+    /**
+     * Отмена откатывает по-настоящему: покупки удаляются, у напоминания
+     * снимается ещё и будильник — это делает `delete` в репозитории.
+     *
+     * Удаление обязано закончиться **до** `Done`: на нём активность
+     * закрывается и отменяет `viewModelScope`. Ровно на этом порядке уже
+     * теряли данные при сохранении.
+     */
+    fun onUndo() {
+        if (undoing) return
+        undoing = true
+        autoClose?.cancel()
+
+        val current = _uiState.value
+        viewModelScope.launch {
+            when (current) {
+                is VoiceCaptureUiState.SavedItems -> shoppingRepository.deleteAll(current.ids)
+                is VoiceCaptureUiState.SavedReminder -> reminderRepository.delete(current.id)
+                else -> Unit
+            }
+            _uiState.value = VoiceCaptureUiState.Done
+        }
+    }
+
+    private fun startAutoClose() {
+        autoClose = viewModelScope.launch {
+            delay(AUTO_CLOSE_MILLIS)
+            _uiState.value = VoiceCaptureUiState.Done
         }
     }
 
@@ -132,77 +177,40 @@ class VoiceCaptureViewModel(
 
     fun onRetry() {
         recognitionLaunched = false
+        saving = false
         _uiState.value = VoiceCaptureUiState.Listening
     }
 
-    fun onItemChange(index: Int, value: String) = updateItems { items ->
-        items.mapIndexed { i, item -> if (i == index) value else item }
-    }
-
-    fun onItemRemove(index: Int) = updateItems { items ->
-        items.filterIndexed { i, _ -> i != index }
-    }
-
-    fun onTitleChange(value: String) {
-        val current = _uiState.value as? VoiceCaptureUiState.ConfirmingReminder ?: return
-        _uiState.value = current.copy(title = value)
-    }
-
     /**
-     * Защита от повторного тапа по «Сохранить».
+     * Флаги, а не состояние.
      *
-     * Раньше эту роль играл перевод состояния в `Done` перед записью — и
-     * стоил потери данных: на `Done` активность закрывается, вместе с ней
-     * отменяется `viewModelScope`, и цикл записи обрывался на середине.
-     * Пока записей было мало и они были быстрыми, это проскакивало; стоило
-     * записи подорожать, как из пяти покупок сохранялись три.
-     *
-     * Теперь `Done` выставляется после записи, а от второго тапа защищает
-     * этот флаг.
+     * Роль защиты когда-то играл перевод состояния в `Done` перед записью — и
+     * стоил данных: на `Done` активность закрывается, вместе с ней
+     * отменяется `viewModelScope`, и цикл записи обрывался на середине. Пока
+     * записей было мало, это проскакивало; стоило записи подорожать, как из
+     * пяти покупок сохранялись три.
      */
     private var saving = false
+    private var undoing = false
 
-    fun onConfirm() {
-        if (saving) return
-
-        when (val current = _uiState.value) {
-            is VoiceCaptureUiState.ConfirmingItems -> {
-                saving = true
-                viewModelScope.launch {
-                    shoppingRepository.addAll(current.items)
-                    _uiState.value = VoiceCaptureUiState.Done
-                }
-            }
-
-            is VoiceCaptureUiState.ConfirmingReminder -> {
-                saving = true
-                viewModelScope.launch {
-                    reminderRepository.add(
-                        title = current.title,
-                        dueAt = current.dueAt.toInstant(),
-                        repeat = current.repeat,
-                    )
-                    _uiState.value = VoiceCaptureUiState.Done
-                }
-            }
-
-            else -> Unit
-        }
-    }
+    private var autoClose: Job? = null
 
     private fun failure() = VoiceCaptureUiState.Failed(VoiceFailure.NOTHING_RECOGNIZED)
 
-    private fun updateItems(transform: (List<String>) -> List<String>) {
-        val current = _uiState.value as? VoiceCaptureUiState.ConfirmingItems ?: return
-        val updated = transform(current.items)
-        _uiState.value = if (updated.isEmpty()) {
-            VoiceCaptureUiState.Done
-        } else {
-            VoiceCaptureUiState.ConfirmingItems(updated)
-        }
-    }
-
     companion object {
+
+        /**
+         * Сколько карточка висит перед закрытием.
+         *
+         * Три секунды — компромисс: хватает прочитать разобранное время и
+         * дотянуться до «Отменить», но не настолько долго, чтобы экран
+         * ощущался как ещё один шаг. Смысл приложения — «тап по виджету →
+         * сразу микрофон», и лишний тап по «Сохранить» этот смысл и съедал.
+         *
+         * Публичная, потому что ту же длительность отсчитывает полоса на
+         * карточке: две константы разъехались бы.
+         */
+        const val AUTO_CLOSE_MILLIS = 3_000L
         fun factory(target: VoiceTarget): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container =
