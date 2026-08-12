@@ -13,5 +13,5 @@
     <string name="appearance_language_en">English</string>
 
     
-    <string name="appearance_language_note">Действует на экраны приложения. Уведомления следуют языку системы — его меняют в настройках Android, «Язык приложения».</string>
+    <string name="appearance_language_note">Действует на экраны приложения и уведомления. Подпись под иконкой следует языку системы — его меняют в настройках Android, «Язык приложения».</string>
 </resources>

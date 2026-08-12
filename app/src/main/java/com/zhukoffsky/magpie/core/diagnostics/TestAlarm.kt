@@ -11,6 +11,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.notification.MagpieNotifications
+import com.zhukoffsky.magpie.core.settings.forSelectedLanguage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 
@@ -57,17 +62,31 @@ class TestAlarmReceiver : BroadcastReceiver() {
     // молчаливый отказ и есть результат теста.
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
-        val notification = NotificationCompat.Builder(context, MagpieNotifications.CHANNEL_REMINDERS)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.diag_test_notification_title))
-            .setContentText(context.getString(R.string.diag_test_notification_text))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
+        // Язык лежит в DataStore, а его чтение — приостановка. Тест обязан
+        // идти тем же путём, что настоящее уведомление, вплоть до языка.
+        val pendingResult = goAsync()
+        val appContext = context.applicationContext
 
-        // Разрешение проверять не нужно: без него notify просто ничего не
-        // сделает, а это и есть ответ теста.
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            try {
+                val strings = appContext.forSelectedLanguage()
+
+                val notification = NotificationCompat
+                    .Builder(appContext, MagpieNotifications.CHANNEL_REMINDERS)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(strings.getString(R.string.diag_test_notification_title))
+                    .setContentText(strings.getString(R.string.diag_test_notification_text))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true)
+                    .build()
+
+                // Разрешение проверять не нужно: без него notify просто ничего
+                // не сделает, а это и есть ответ теста.
+                NotificationManagerCompat.from(appContext).notify(NOTIFICATION_ID, notification)
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     private companion object {
