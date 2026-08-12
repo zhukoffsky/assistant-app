@@ -25,6 +25,8 @@ import com.zhukoffsky.magpie.core.sync.SyncTrigger
 import com.zhukoffsky.magpie.core.sync.WorkManagerSyncTrigger
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import java.time.Duration
 import retrofit2.Retrofit
 import com.zhukoffsky.magpie.feature.meds.alarm.AlarmManagerMedScheduler
 import com.zhukoffsky.magpie.feature.meds.alarm.MedScheduler
@@ -73,8 +75,35 @@ class AppContainer(context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Клиент с запасом по времени и одним повтором.
+     *
+     * Умолчания OkHttp — десять секунд, и их не хватает: 12 августа разбор
+     * покупок упал по сети, и весь список приехал одной строкой, потому что
+     * гибрид откатился на правила. Владелец ходит до z.ai из России без VPN,
+     * маршрут длинный и нестабильный, так что одна потерянная попытка — это
+     * не «редкий случай», а обычный день.
+     *
+     * Повтор ровно один: запрос идёт, пока человек смотрит на карточку
+     * «Разбираю список…», и растягивать ожидание вдвое ради третьей попытки
+     * хуже, чем разобрать правилами.
+     */
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(HTTP_TIMEOUT)
+            .readTimeout(HTTP_TIMEOUT)
+            .writeTimeout(HTTP_TIMEOUT)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                runCatching { chain.proceed(request) }
+                    .getOrElse { chain.proceed(request) }
+            }
+            .build()
+    }
+
     private inline fun <reified T> retrofit(baseUrl: String): T = Retrofit.Builder()
         .baseUrl(baseUrl)
+        .client(httpClient)
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(T::class.java)
@@ -149,4 +178,8 @@ class AppContainer(context: Context) {
 
     val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
     val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
+
+    private companion object {
+        val HTTP_TIMEOUT: Duration = Duration.ofSeconds(30)
+    }
 }
