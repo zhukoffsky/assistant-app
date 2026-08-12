@@ -1,5 +1,7 @@
 package com.zhukoffsky.magpie.feature.reminders.domain
 
+import com.zhukoffsky.magpie.core.util.SPACE
+import com.zhukoffsky.magpie.core.util.normalizeSpaces
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.ZonedDateTime
@@ -47,8 +49,16 @@ object ReminderPhraseParser {
 
     private val anyWeekday = weekdayPatterns.joinToString("|") { "(?:${it.first})" }
 
+    /**
+     * Вводное «напомни» в начале фразы — оно про способ записи, а не про дело.
+     *
+     * Пробел после глагола — [SPACE], а не `\s`: распознаватель ставит после
+     * него неразрывный, и с `\s` регулярка не находила ничего. Запятая и
+     * двоеточие допускаются по той же причине — «напомни, съездить…».
+     */
     private val leadingVerb = Regex(
-        """^\s*(?:напомни(?:ть)?(?:\s+мне)?|remind\s+me(?:\s+to)?)\s+""",
+        """^$SPACE*(?:напомни(?:ть)?(?:$SPACE+мне)?|напоминание|""" +
+            """remind$SPACE+me(?:${SPACE}+to)?)(?:$SPACE|[,:—-])+""",
         RegexOption.IGNORE_CASE,
     )
     private val dailyRepeat = Regex(
@@ -98,8 +108,7 @@ object ReminderPhraseParser {
         }
 
         val title = text.value
-            .replace(Regex("""\s+"""), " ")
-            .trim()
+            .normalizeSpaces()
             .trim(',', '.', '!', '?', '—', '-')
             .trim()
 
