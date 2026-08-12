@@ -21,6 +21,12 @@ internal val LightColors = lightColorScheme(
     onPrimaryContainer = LightOnAccent,
     secondary = LightAccentPressed,
     onSecondary = LightOnAccent,
+    // `secondaryContainer` — единственная роль-контейнер, доступная виджетам:
+    // `surfaceContainer*` в Glance 1.1 не отдаётся вовсе. Заполнена по той же
+    // причине, что и они: пустая, она падает на базовую сиреневую палитру
+    // Material и выпадает из тёплой гаммы.
+    secondaryContainer = LightSurfaceContainerHigh,
+    onSecondaryContainer = LightInk,
     background = LightBg,
     onBackground = LightInk,
     surface = LightBg,
@@ -46,6 +52,8 @@ internal val DarkColors = darkColorScheme(
     onPrimaryContainer = DarkOnAccent,
     secondary = DarkAccentPressed,
     onSecondary = DarkOnAccent,
+    secondaryContainer = DarkSurfaceContainerHigh,
+    onSecondaryContainer = DarkInk,
     background = DarkBg,
     onBackground = DarkInk,
     surface = DarkBg,

@@ -6,6 +6,7 @@ import com.zhukoffsky.magpie.core.notification.MagpieNotifications
 import com.zhukoffsky.magpie.core.settings.AppearancePreferences
 import com.zhukoffsky.magpie.core.settings.forLanguage
 import com.zhukoffsky.magpie.core.util.MagpieLog
+import com.zhukoffsky.magpie.feature.meds.widget.MedWidget
 import com.zhukoffsky.magpie.feature.reminders.widget.ReminderVoiceWidget
 import com.zhukoffsky.magpie.feature.shopping.widget.ShoppingWidget
 import androidx.glance.appwidget.updateAll
@@ -55,6 +56,7 @@ class MagpieApp : Application() {
                     // правки данных.
                     ShoppingWidget().updateAll(this@MagpieApp)
                     ReminderVoiceWidget().updateAll(this@MagpieApp)
+                    MedWidget().updateAll(this@MagpieApp)
                 }
         }
     }

@@ -29,6 +29,7 @@ import retrofit2.Retrofit
 import com.zhukoffsky.magpie.feature.meds.alarm.AlarmManagerMedScheduler
 import com.zhukoffsky.magpie.feature.meds.alarm.MedScheduler
 import com.zhukoffsky.magpie.feature.meds.data.MedRepository
+import com.zhukoffsky.magpie.feature.meds.widget.MedWidget
 import com.zhukoffsky.magpie.feature.reminders.alarm.AlarmManagerReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
@@ -136,7 +137,15 @@ class AppContainer(context: Context) {
     }
 
     val medScheduler: MedScheduler by lazy { AlarmManagerMedScheduler(appContext) }
-    val medRepository by lazy { MedRepository(medDao, medScheduler) }
+    val medRepository by lazy {
+        // Как у покупок и напоминаний: подписки на Room виджету хватает
+        // только пока жив процесс.
+        MedRepository(
+            dao = medDao,
+            scheduler = medScheduler,
+            onChanged = { MedWidget().updateAll(appContext) },
+        )
+    }
 
     val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
     val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
