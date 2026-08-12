@@ -101,7 +101,8 @@
 
     <string name="widget_shopping_description">Shopping list with a dictate button</string>
     <string name="widget_shopping_empty">Nothing to buy</string>
-    <string name="widget_reminder_description">Dictate a reminder</string>
+    <string name="widget_reminder_description">Nearest reminder with a dictate button</string>
+    <string name="widget_reminder_empty">Nothing scheduled</string>
 
     <string name="tile_reminder">Dictate a reminder</string>
     <string name="tile_shopping">Dictate a purchase</string>

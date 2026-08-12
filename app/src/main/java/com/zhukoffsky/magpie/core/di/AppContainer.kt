@@ -32,6 +32,7 @@ import com.zhukoffsky.magpie.feature.meds.data.MedRepository
 import com.zhukoffsky.magpie.feature.reminders.alarm.AlarmManagerReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
+import com.zhukoffsky.magpie.feature.reminders.widget.ReminderVoiceWidget
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import com.zhukoffsky.magpie.feature.shopping.widget.ShoppingWidget
 
@@ -124,10 +125,13 @@ class AppContainer(context: Context) {
 
     val reminderScheduler: ReminderScheduler by lazy { AlarmManagerReminderScheduler(appContext) }
     val reminderRepository by lazy {
+        // Каждая запись толкает виджет — по той же причине, что и у покупок:
+        // подписки на Room ему хватает только пока жив процесс.
         ReminderRepository(
             dao = reminderDao,
             scheduler = reminderScheduler,
             syncTrigger = syncTrigger,
+            onChanged = { ReminderVoiceWidget().updateAll(appContext) },
         )
     }
 

@@ -101,7 +101,8 @@
 
     <string name="widget_shopping_description">Список покупок с кнопкой диктовки</string>
     <string name="widget_shopping_empty">Покупать нечего</string>
-    <string name="widget_reminder_description">Продиктовать напоминание</string>
+    <string name="widget_reminder_description">Ближайшее напоминание с кнопкой диктовки</string>
+    <string name="widget_reminder_empty">Ничего не запланировано</string>
 
     <string name="tile_reminder">Напоминание</string>
     <string name="tile_shopping">Покупка</string>

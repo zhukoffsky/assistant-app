@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.action.actionParametersOf
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.settings.forSelectedLanguage
 import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
@@ -73,10 +74,14 @@ class ShoppingWidget : GlanceAppWidget() {
          */
         val initial = repository.observeItems().first()
 
+        // Строки — на языке приложения, а не системы: в Glance
+        // `stringResource` нет, всё идёт через контекст.
+        val strings = context.forSelectedLanguage()
+
         provideContent {
             val items by repository.observeItems().collectAsState(initial = initial)
             GlanceTheme(colors = MagpieGlanceColors) {
-                WidgetContent(context = context, items = items)
+                WidgetContent(context = strings, items = items)
             }
         }
     }

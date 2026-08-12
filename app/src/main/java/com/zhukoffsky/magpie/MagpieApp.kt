@@ -5,6 +5,10 @@ import com.zhukoffsky.magpie.core.di.AppContainer
 import com.zhukoffsky.magpie.core.notification.MagpieNotifications
 import com.zhukoffsky.magpie.core.settings.AppearancePreferences
 import com.zhukoffsky.magpie.core.settings.forLanguage
+import com.zhukoffsky.magpie.core.util.MagpieLog
+import com.zhukoffsky.magpie.feature.reminders.widget.ReminderVoiceWidget
+import com.zhukoffsky.magpie.feature.shopping.widget.ShoppingWidget
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,7 +46,15 @@ class MagpieApp : Application() {
             AppearancePreferences(this@MagpieApp).language
                 .distinctUntilChanged()
                 .collect { language ->
+                    MagpieLog.i("appearance: language=$language")
                     MagpieNotifications.ensureChannels(forLanguage(language))
+
+                    // Виджет сам себя не перерисовывает: для него смена языка
+                    // — такое же событие, как новая запись в списке. Без
+                    // толчка он остался бы на прежнем языке до ближайшей
+                    // правки данных.
+                    ShoppingWidget().updateAll(this@MagpieApp)
+                    ReminderVoiceWidget().updateAll(this@MagpieApp)
                 }
         }
     }

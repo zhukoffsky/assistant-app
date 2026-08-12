@@ -2,6 +2,7 @@ package com.zhukoffsky.magpie.core.data.db
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 
 class FakeReminderDao : ReminderDao {
@@ -10,6 +11,11 @@ class FakeReminderDao : ReminderDao {
     private var nextId = 1L
 
     override fun observeAll(): Flow<List<ReminderEntity>> = items
+
+    override fun observeNext(): Flow<ReminderEntity?> = items.map { list ->
+        list.filter { !it.isDone && it.dueAt != null }
+            .minWithOrNull(compareBy({ it.dueAt }, { it.id }))
+    }
 
     override suspend fun byId(id: Long): ReminderEntity? = items.value.firstOrNull { it.id == id }
 

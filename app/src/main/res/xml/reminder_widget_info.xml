@@ -10,9 +10,9 @@
     android:description="@string/widget_reminder_description"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minHeight="60dp"
-    android:minWidth="60dp"
+    android:minWidth="180dp"
     android:resizeMode="horizontal|vertical"
     android:targetCellHeight="1"
-    android:targetCellWidth="1"
+    android:targetCellWidth="3"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

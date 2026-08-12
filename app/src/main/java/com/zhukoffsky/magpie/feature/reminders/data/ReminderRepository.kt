@@ -13,15 +13,28 @@ import kotlinx.coroutines.flow.map
 import java.time.Clock
 import java.time.Instant
 
+/**
+ * [onChanged] вызывается после каждой записи и служит одному: растолкать
+ * виджет. Причина та же, что у списка покупок: подписка на поток Room
+ * обновляет виджет, только пока жива сессия Glance, а она заканчивается
+ * вместе с процессом. Хук лежит здесь, потому что писать в напоминания умеют
+ * ещё голосовой ввод и уведомление, и точку записи легко забыть.
+ * Android-зависимостей у репозитория при этом не появляется: чем именно
+ * «растолкать» — решает `AppContainer`.
+ */
 class ReminderRepository(
     private val dao: ReminderDao,
     private val scheduler: ReminderScheduler,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val syncTrigger: SyncTrigger = SyncTrigger.None,
+    private val onChanged: suspend () -> Unit = {},
 ) {
 
     fun observeAll(): Flow<List<Reminder>> =
         dao.observeAll().map { entities -> entities.map { it.toDomain() } }
+
+    /** Ближайшее невыполненное — для виджета. */
+    fun observeNext(): Flow<Reminder?> = dao.observeNext().map { it?.toDomain() }
 
     suspend fun byId(id: Long): Reminder? = dao.byId(id)?.toDomain()
 
@@ -42,6 +55,7 @@ class ReminderRepository(
         )
         if (dueAt != null) scheduler.schedule(id, dueAt)
         syncTrigger.requestSync()
+        onChanged()
         return id
     }
 
@@ -57,6 +71,7 @@ class ReminderRepository(
 
         if (dueAt != null) scheduler.schedule(id, dueAt) else scheduler.cancel(id)
         markForUpload(id)
+        onChanged()
     }
 
     suspend fun setDone(id: Long, isDone: Boolean) {
@@ -70,6 +85,7 @@ class ReminderRepository(
         }
 
         markForUpload(id)
+        onChanged()
     }
 
     suspend fun delete(id: Long) {
@@ -81,6 +97,7 @@ class ReminderRepository(
         dao.deleteById(id)
 
         remoteTaskId?.let(syncTrigger::requestRemoteDelete)
+        onChanged()
     }
 
     /**
@@ -102,6 +119,7 @@ class ReminderRepository(
         dao.setDueAt(reminder.id, next, clock.instant())
         scheduler.schedule(reminder.id, next)
         markForUpload(reminder.id)
+        onChanged()
     }
 
     private suspend fun markForUpload(id: Long) {
