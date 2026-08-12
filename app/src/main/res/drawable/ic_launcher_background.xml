@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Задний слой адаптивной иконки.
+
+  Раньше здесь был плоский цвет `@color/ic_launcher_background` — синий
+  `#1F3A5F` из заготовки, которого нет в палитре приложения.
+
+  Два слоя вместо одного: тёплый градиент и отсвет акцентом из левого
+  верхнего угла. Это тот же приём, что в фоне самого приложения
+  (`magpieMesh`), и нужен он ровно затем, чтобы иконка и экран читались как
+  одна вещь.
+
+  Градиенты в `VectorDrawable` работают с API 24, у нас minSdk 29.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="37.8"
+                android:endY="108">
+                <item android:offset="0" android:color="#332723" />
+                <item android:offset="1" android:color="#120F0E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="25.9"
+                android:centerY="21.6"
+                android:gradientRadius="77.8">
+                <item android:offset="0" android:color="#33FF8551" />
+                <item android:offset="1" android:color="#00FF8551" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
