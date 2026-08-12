@@ -25,13 +25,19 @@ enum class VoiceFailure {
     /** На устройстве нет приложения, умеющего распознавать речь. */
     NO_RECOGNIZER,
 
-    /** Пользователь закрыл диалог распознавания или ничего не сказал. */
+    /** Пользователь закрыл экран записи или ничего не сказал. */
     NOTHING_RECOGNIZED,
+
+    /** Без микрофона своя запись невозможна. */
+    NO_PERMISSION,
 }
 
 sealed interface VoiceCaptureUiState {
-    /** Открыт системный диалог распознавания, своего интерфейса не показываем. */
-    data object Listening : VoiceCaptureUiState
+    /**
+     * Идёт запись. [heard] — то, что уже разобрано, вместе с текущей
+     * незавершённой фразой: человек видит, что его слышат.
+     */
+    data class Listening(val heard: String = "") : VoiceCaptureUiState
 
     /** Фраза распознана, идёт разбор. Может занять секунду-две, если зовём LLM. */
     data object Parsing : VoiceCaptureUiState
@@ -65,7 +71,7 @@ class VoiceCaptureViewModel(
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<VoiceCaptureUiState>(VoiceCaptureUiState.Listening)
+    private val _uiState = MutableStateFlow<VoiceCaptureUiState>(VoiceCaptureUiState.Listening())
     val uiState: StateFlow<VoiceCaptureUiState> = _uiState.asStateFlow()
 
     private var recognitionLaunched = false
@@ -82,6 +88,40 @@ class VoiceCaptureViewModel(
         recognitionLaunched = true
         return true
     }
+
+    /**
+     * Всё, что уже сказано.
+     *
+     * Копится по кускам: распознаватель заканчивает фразу на каждой паузе, а
+     * список покупок диктуют именно с паузами — «молоко, хлеб… а, ещё
+     * салфетки». Поэтому у покупок запись после паузы начинается заново, а
+     * сказанное складывается сюда; заканчивает человек кнопкой.
+     */
+    private var heard: String = ""
+
+    /** Текущая незавершённая фраза — показывается, но ещё не накоплена. */
+    fun onPartial(text: String) {
+        if (_uiState.value !is VoiceCaptureUiState.Listening) return
+        _uiState.value = VoiceCaptureUiState.Listening(join(heard, text))
+    }
+
+    /** Распознаватель закончил кусок: он больше не изменится. */
+    fun onSegment(text: String) {
+        heard = join(heard, text)
+        if (_uiState.value is VoiceCaptureUiState.Listening) {
+            _uiState.value = VoiceCaptureUiState.Listening(heard)
+        }
+    }
+
+    /** Запись окончена: кнопкой у покупок, тишиной у напоминаний. */
+    fun onListeningFinished() = onRecognitionResult(heard)
+
+    fun onPermissionDenied() {
+        _uiState.value = VoiceCaptureUiState.Failed(VoiceFailure.NO_PERMISSION)
+    }
+
+    private fun join(first: String, second: String): String =
+        listOf(first.trim(), second.trim()).filter { it.isNotEmpty() }.joinToString(" ")
 
     /** @param spoken распознанная фраза; null — отмена, ошибка или тишина. */
     fun onRecognitionResult(spoken: String?) {
@@ -178,7 +218,8 @@ class VoiceCaptureViewModel(
     fun onRetry() {
         recognitionLaunched = false
         saving = false
-        _uiState.value = VoiceCaptureUiState.Listening
+        heard = ""
+        _uiState.value = VoiceCaptureUiState.Listening()
     }
 
     /**

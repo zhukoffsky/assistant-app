@@ -181,7 +181,7 @@ class VoiceCaptureViewModelTest {
 
         vm.onRetry()
 
-        assertEquals(VoiceCaptureUiState.Listening, vm.uiState.value)
+        assertEquals(VoiceCaptureUiState.Listening(), vm.uiState.value)
         assertEquals(true, vm.shouldStartRecognition())
     }
 
@@ -191,6 +191,48 @@ class VoiceCaptureViewModelTest {
 
         assertEquals(true, vm.shouldStartRecognition())
         assertEquals(false, vm.shouldStartRecognition())
+    }
+
+    /**
+     * Список диктуют с паузами: назвал три позиции, вспоминаешь четвёртую.
+     * Распознаватель заканчивает фразу на каждой паузе, поэтому куски
+     * копятся, а заканчивает запись человек кнопкой.
+     */
+    @Test
+    fun `pieces spoken with pauses add up to one phrase`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+
+        vm.onSegment("молоко, хлеб")
+        vm.onPartial("и ещё")
+        vm.onSegment("и ещё салфетки")
+        vm.onListeningFinished()
+
+        assertEquals(
+            listOf("молоко", "хлеб", "салфетки"),
+            shoppingDao.items.value.map { it.title },
+        )
+    }
+
+    @Test
+    fun `what is heard so far is shown while listening`() {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+
+        vm.onSegment("молоко")
+        vm.onPartial("хлеб")
+
+        assertEquals(VoiceCaptureUiState.Listening("молоко хлеб"), vm.uiState.value)
+    }
+
+    @Test
+    fun `finishing without a word is a failure, not an empty note`() {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+
+        vm.onListeningFinished()
+
+        assertEquals(
+            VoiceCaptureUiState.Failed(VoiceFailure.NOTHING_RECOGNIZED),
+            vm.uiState.value,
+        )
     }
 
     private class RecordingScheduler : ReminderScheduler {

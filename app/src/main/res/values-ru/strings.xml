@@ -107,6 +107,10 @@
     <string name="voice_saved_reminder_title">Напомню</string>
     <string name="voice_undo">Отменить</string>
     <string name="voice_retry">Повторить</string>
+    <string name="voice_done">Готово</string>
+    <string name="voice_listening_shopping">Говори — список складывается по ходу, нажми «Готово», когда закончишь</string>
+    <string name="voice_listening_reminder">Слушаю…</string>
+    <string name="voice_error_no_permission">Без микрофона записывать нечем. Разреши доступ в настройках системы.</string>
     <string name="date_today">Сегодня</string>
     <string name="date_tomorrow">Завтра</string>
     <string name="voice_close">Закрыть</string>
@@ -117,6 +121,9 @@
     <string name="widget_shopping_empty">Покупать нечего</string>
     <string name="widget_reminder_description">Ближайшее напоминание с кнопкой диктовки</string>
     <string name="widget_reminder_empty">Ничего не запланировано</string>
+    <string name="widget_meds_description">Сегодняшний приём: лекарство, доза и время</string>
+    <string name="widget_meds_empty">Курс не заведён</string>
+    <string name="widget_meds_dose">%1$d %2$s</string>
 
     <string name="tile_reminder">Напоминание</string>
     <string name="tile_shopping">Покупка</string>
@@ -125,9 +132,6 @@
     <string name="shortcut_reminder_long">Продиктовать напоминание</string>
     <string name="shortcut_shopping_short">Покупка</string>
     <string name="shortcut_shopping_long">Продиктовать покупку</string>
-
-    <string name="undo_deleted">Удалено</string>
-    <string name="undo_action">Отменить</string>
     <string name="picker_ok">Готово</string>
     <string name="picker_cancel">Отмена</string>
     <string name="reminder_edit_title">Правка напоминания</string>
