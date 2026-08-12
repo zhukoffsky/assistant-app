@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,7 @@ import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 
 @Composable
@@ -119,19 +121,68 @@ private fun ShoppingScreenContent(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                itemsIndexed(items = state.items, key = { _, item -> item.id }) { index, item ->
-                    SwipeableRow(
-                        item = item,
-                        index = index,
-                        onCheckedChange = { checked -> onCheckedChange(item, checked) },
-                        onDelete = { onDelete(item) },
-                        modifier = Modifier.animateItem(),
-                    )
+                if (state.groupByCategory) {
+                    /*
+                     * Сквозная нумерация через все отделы, а не своя в
+                     * каждом: каскадное появление списка считает по ней
+                     * задержку, и с нумерацией по группам строки въезжали бы
+                     * пачками, как будто список моргает.
+                     */
+                    var index = 0
+                    state.groups.forEach { (category, items) ->
+                        item(key = "category-${category.name}") {
+                            CategoryHeader(category)
+                        }
+                        items(items = items, key = { it.id }) { item ->
+                            SwipeableRow(
+                                item = item,
+                                index = index++,
+                                onCheckedChange = { checked -> onCheckedChange(item, checked) },
+                                onDelete = { onDelete(item) },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+                } else {
+                    itemsIndexed(items = state.items, key = { _, item -> item.id }) { index, item ->
+                        SwipeableRow(
+                            item = item,
+                            index = index,
+                            onCheckedChange = { checked -> onCheckedChange(item, checked) },
+                            onDelete = { onDelete(item) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** Заголовок отдела: только текст, без стекла — это не строка списка. */
+@Composable
+private fun CategoryHeader(category: ShoppingCategory) {
+    Text(
+        text = stringResource(category.labelRes),
+        style = MaterialTheme.typography.labelLarge,
+        color = MagpieTheme.colors.ink2,
+        modifier = Modifier.padding(start = 10.dp, top = 6.dp),
+    )
+}
+
+/** Название отдела живёт в ресурсах: список двуязычный. */
+private val ShoppingCategory.labelRes: Int
+    get() = when (this) {
+        ShoppingCategory.PRODUCE -> R.string.category_produce
+        ShoppingCategory.BAKERY -> R.string.category_bakery
+        ShoppingCategory.DAIRY -> R.string.category_dairy
+        ShoppingCategory.MEAT -> R.string.category_meat
+        ShoppingCategory.GROCERY -> R.string.category_grocery
+        ShoppingCategory.FROZEN -> R.string.category_frozen
+        ShoppingCategory.DRINKS -> R.string.category_drinks
+        ShoppingCategory.HOUSEHOLD -> R.string.category_household
+        ShoppingCategory.OTHER -> R.string.category_other
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

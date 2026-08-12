@@ -10,12 +10,13 @@ import com.zhukoffsky.magpie.core.util.MagpieLog
  * покрывает, но ходит в сеть. Реализации взаимозаменяемы.
  */
 fun interface ShoppingItemsParser {
-    suspend fun parse(phrase: String): List<String>
+    suspend fun parse(phrase: String): List<ParsedShoppingItem>
 }
 
-/** Правила: режет по запятым, точкам с запятой и союзам. */
+/** Правила: режет по запятым, точкам с запятой и союзам. Отделов не знают. */
 class RuleBasedShoppingParser : ShoppingItemsParser {
-    override suspend fun parse(phrase: String): List<String> = ShoppingPhraseParser.parse(phrase)
+    override suspend fun parse(phrase: String): List<ParsedShoppingItem> =
+        ShoppingPhraseParser.parse(phrase).map { ParsedShoppingItem(title = it) }
 }
 
 /**
@@ -48,14 +49,14 @@ class HybridShoppingParser(
     private val llm: ShoppingItemsParser,
 ) : ShoppingItemsParser {
 
-    override suspend fun parse(phrase: String): List<String> {
+    override suspend fun parse(phrase: String): List<ParsedShoppingItem> {
         val byRules = rules.parse(phrase)
         if (!needsLlm(phrase, byRules)) {
             MagpieLog.i("shopping parse: rules, ${byRules.size} item(s)")
             return byRules
         }
 
-        val byLlm = llm.parse(phrase).filter { it.isNotBlank() }
+        val byLlm = llm.parse(phrase).filter { it.title.isNotBlank() }
         if (byLlm.isEmpty()) {
             MagpieLog.i("shopping parse: fallback to rules")
             return byRules
@@ -65,7 +66,7 @@ class HybridShoppingParser(
         return byLlm
     }
 
-    private fun needsLlm(phrase: String, byRules: List<String>): Boolean {
+    private fun needsLlm(phrase: String, byRules: List<ParsedShoppingItem>): Boolean {
         if (STRONG_SEPARATOR.containsMatchIn(phrase)) return false
         return phrase.trim().split(WHITESPACE).size > 1 || byRules.size > 1
     }

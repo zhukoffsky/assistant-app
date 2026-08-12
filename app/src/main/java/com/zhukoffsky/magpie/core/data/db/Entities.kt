@@ -54,6 +54,14 @@ data class ShoppingItemEntity(
     val checkedAt: Instant? = null,
     val remoteTaskId: String? = null,
     val syncState: SyncState = SyncState.LOCAL_ONLY,
+    /**
+     * Отдел магазина; `null` — неизвестен.
+     *
+     * Хранится строкой, а не через `TypeConverter`: неизвестное значение
+     * должно превращаться в «Прочее», а не ронять чтение. Записи, созданные
+     * до появления колонки, так и остаются с `null`.
+     */
+    val category: String? = null,
 )
 
 @Entity(tableName = "reminders")

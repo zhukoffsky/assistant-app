@@ -10,4 +10,6 @@ data class ShoppingItem(
     val id: Long,
     val title: String,
     val isChecked: Boolean,
+    /** Отдел магазина. Позиции без него собираются в [ShoppingCategory.OTHER]. */
+    val category: ShoppingCategory = ShoppingCategory.OTHER,
 )

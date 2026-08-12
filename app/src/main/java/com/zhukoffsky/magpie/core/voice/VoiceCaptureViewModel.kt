@@ -115,13 +115,13 @@ class VoiceCaptureViewModel(
     }
 
     private suspend fun saveItems(phrase: String): VoiceCaptureUiState? {
-        val titles = shoppingParser.parse(phrase)
-        if (titles.isEmpty()) return null
+        val items = shoppingParser.parse(phrase)
+        if (items.isEmpty()) return null
 
-        val ids = shoppingRepository.addAll(titles)
+        val ids = shoppingRepository.addAll(items)
         if (ids.isEmpty()) return null
 
-        return VoiceCaptureUiState.SavedItems(titles = titles, ids = ids)
+        return VoiceCaptureUiState.SavedItems(titles = items.map { it.title }, ids = ids)
     }
 
     private suspend fun saveReminder(phrase: String): VoiceCaptureUiState? {

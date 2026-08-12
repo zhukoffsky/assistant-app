@@ -86,6 +86,18 @@
     <string name="shopping_delete">Delete</string>
     <string name="shopping_clear_checked">Clear bought</string>
     <string name="shopping_checked_count">Bought: %1$d</string>
+    <string name="shopping_settings_title">Shopping list</string>
+    <string name="shopping_group_by_category">Group by aisle</string>
+    <string name="shopping_group_by_category_note">Dictated items get an aisle from the model. Everything else goes to Other.</string>
+    <string name="category_produce">Fruit and veg</string>
+    <string name="category_bakery">Bakery</string>
+    <string name="category_dairy">Dairy and eggs</string>
+    <string name="category_meat">Meat and fish</string>
+    <string name="category_grocery">Groceries</string>
+    <string name="category_frozen">Frozen</string>
+    <string name="category_drinks">Drinks</string>
+    <string name="category_household">Household</string>
+    <string name="category_other">Other</string>
     <string name="shopping_empty">The list is empty.\nType an item above and tap +.</string>
 
     <string name="voice_input">Dictate</string>

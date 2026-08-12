@@ -86,6 +86,18 @@
     <string name="shopping_delete">Удалить</string>
     <string name="shopping_clear_checked">Убрать купленное</string>
     <string name="shopping_checked_count">Куплено: %1$d</string>
+    <string name="shopping_settings_title">Список покупок</string>
+    <string name="shopping_group_by_category">Группировать по отделам</string>
+    <string name="shopping_group_by_category_note">Отдел приходит от модели при диктовке. Всё остальное попадает в «Прочее».</string>
+    <string name="category_produce">Овощи и фрукты</string>
+    <string name="category_bakery">Хлеб и выпечка</string>
+    <string name="category_dairy">Молочное и яйца</string>
+    <string name="category_meat">Мясо и рыба</string>
+    <string name="category_grocery">Бакалея</string>
+    <string name="category_frozen">Заморозка</string>
+    <string name="category_drinks">Напитки</string>
+    <string name="category_household">Бытовое</string>
+    <string name="category_other">Прочее</string>
     <string name="shopping_empty">Список пуст.\nВведи покупку сверху и нажми +.</string>
 
     <string name="voice_input">Продиктовать</string>

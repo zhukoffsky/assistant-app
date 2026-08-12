@@ -2,6 +2,8 @@ package com.zhukoffsky.magpie.feature.shopping.data
 
 import com.zhukoffsky.magpie.core.data.db.ShoppingDao
 import com.zhukoffsky.magpie.core.data.db.ShoppingItemEntity
+import com.zhukoffsky.magpie.feature.shopping.domain.ParsedShoppingItem
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -63,9 +65,9 @@ class ShoppingRepository(
      *
      * @return идентификаторы записанного — по ним отменяют диктовку.
      */
-    suspend fun addAll(rawTitles: List<String>): List<Long> {
-        val ids = rawTitles.mapNotNull { raw ->
-            val title = raw.trim()
+    suspend fun addAll(items: List<ParsedShoppingItem>): List<Long> {
+        val ids = items.mapNotNull { item ->
+            val title = item.title.trim()
             if (title.isEmpty()) {
                 null
             } else {
@@ -74,6 +76,7 @@ class ShoppingRepository(
                         title = title,
                         position = dao.maxPosition() + 1,
                         createdAt = clock.instant(),
+                        category = item.category?.name,
                     ),
                 )
             }
@@ -114,4 +117,5 @@ private fun ShoppingItemEntity.toDomain() = ShoppingItem(
     id = id,
     title = title,
     isChecked = isChecked,
+    category = ShoppingCategory.fromName(category),
 )
