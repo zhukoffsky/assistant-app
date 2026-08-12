@@ -142,6 +142,18 @@ object MagpieNotifications {
                 strings.getString(R.string.reminder_action_done),
                 ReminderActionReceiver.donePendingIntent(context, reminder.id),
             )
+            // Больше трёх кнопок Android всё равно не покажет, поэтому
+            // отсрочек ровно две.
+            .addAction(
+                R.drawable.ic_notification,
+                strings.getString(R.string.reminder_action_snooze_10),
+                ReminderActionReceiver.snoozePendingIntent(context, reminder.id, minutes = 10),
+            )
+            .addAction(
+                R.drawable.ic_notification,
+                strings.getString(R.string.reminder_action_snooze_60),
+                ReminderActionReceiver.snoozePendingIntent(context, reminder.id, minutes = 60),
+            )
             .build()
 
         NotificationManagerCompat.from(context).notify(notificationId(reminder.id), notification)

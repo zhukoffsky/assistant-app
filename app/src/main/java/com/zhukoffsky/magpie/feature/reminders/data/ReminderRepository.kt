@@ -11,6 +11,7 @@ import com.zhukoffsky.magpie.feature.reminders.domain.nextAfter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 
 /**
@@ -69,9 +70,29 @@ class ReminderRepository(
 
         dao.updateDetails(id, cleanTitle, dueAt, clock.instant())
 
-        if (dueAt != null) scheduler.schedule(id, dueAt) else scheduler.cancel(id)
+        // Сначала снимаются оба будильника: у напоминания могла висеть
+        // отсрочка, и после правки времени она сработала бы по старому.
+        scheduler.cancel(id)
+        if (dueAt != null) scheduler.schedule(id, dueAt)
+
         markForUpload(id)
         onChanged()
+    }
+
+    /**
+     * Отложить: отдельный будильник, ничего в базе.
+     *
+     * Времени напоминания отсрочка не трогает — иначе отложенное «каждый
+     * вторник» сдвинуло бы всю серию. Цена — отсрочка не переживает
+     * перезагрузку: она нигде не записана, а `rescheduleAll` знает только про
+     * `dueAt`. Для повтора это не потеря (следующее срабатывание на месте),
+     * для одноразового напоминание останется в списке просроченным.
+     */
+    suspend fun snooze(id: Long, delay: Duration) {
+        val reminder = dao.byId(id)?.toDomain() ?: return
+        if (reminder.isDone) return
+
+        scheduler.scheduleSnooze(id, clock.instant().plus(delay))
     }
 
     suspend fun setDone(id: Long, isDone: Boolean) {
@@ -137,6 +158,11 @@ class ReminderRepository(
         dao.pendingScheduled().forEach { entity ->
             val reminder = entity.toDomain()
             val dueAt = reminder.dueAt ?: return@forEach
+
+            // Сначала снять всё, что могло остаться: после перезагрузки не
+            // остаётся ничего, а после обновления приложения — будильники
+            // прежней сборки, которые сработали бы вторыми.
+            scheduler.cancel(reminder.id)
 
             when {
                 dueAt.isAfter(now) -> scheduler.schedule(reminder.id, dueAt)

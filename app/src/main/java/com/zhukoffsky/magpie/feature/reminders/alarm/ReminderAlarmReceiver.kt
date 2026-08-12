@@ -39,10 +39,21 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                     MagpieLog.i("fired: reminder=$id already done, skipped")
                     return@launch
                 }
-                MagpieLog.i("fired: reminder=$id repeat=${reminder.repeat != null}")
+
+                val snoozed = intent.action == ACTION_SNOOZED
+                MagpieLog.i("fired: reminder=$id repeat=${reminder.repeat != null} snoozed=$snoozed")
 
                 MagpieNotifications.showReminder(appContext, reminder)
-                repository.onFired(reminder)
+
+                /*
+                 * Повтор двигает только настоящее срабатывание.
+                 *
+                 * Отсрочка идёт через этот же получатель, и без проверки
+                 * действия одно нажатие «+10 мин» сдвинуло бы «каждый
+                 * вторник» на неделю вперёд второй раз: первый — когда
+                 * напоминание сработало по расписанию.
+                 */
+                if (!snoozed) repository.onFired(reminder)
             } finally {
                 pendingResult.finish()
             }
@@ -50,6 +61,12 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        /** Пришло время, записанное в напоминании. */
+        const val ACTION_DUE = "com.zhukoffsky.magpie.action.REMINDER_DUE"
+
+        /** Истекла отсрочка, поставленная кнопкой в уведомлении. */
+        const val ACTION_SNOOZED = "com.zhukoffsky.magpie.action.REMINDER_SNOOZED"
+
         const val EXTRA_REMINDER_ID = "reminderId"
         private const val INVALID_ID = -1L
     }

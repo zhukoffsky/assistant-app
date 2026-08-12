@@ -75,6 +75,8 @@
     <string name="reminders_empty">No reminders.\nTry: “tomorrow at 9 call the clinic”.</string>
     <string name="reminder_no_time">No time set</string>
     <string name="reminder_action_done">Done</string>
+    <string name="reminder_action_snooze_10">+10 min</string>
+    <string name="reminder_action_snooze_60">+1 hour</string>
     <string name="repeat_daily">every day</string>
     <string name="repeat_weekly">on %1$s</string>
     <string name="channel_reminders">Reminders</string>

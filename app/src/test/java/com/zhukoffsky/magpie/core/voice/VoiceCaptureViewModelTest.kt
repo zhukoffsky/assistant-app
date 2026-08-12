@@ -218,6 +218,7 @@ class VoiceCaptureViewModelTest {
 
     private object NoopScheduler : ReminderScheduler {
         override fun schedule(id: Long, at: Instant) = Unit
+        override fun scheduleSnooze(id: Long, at: Instant) = Unit
         override fun cancel(id: Long) = Unit
     }
 }

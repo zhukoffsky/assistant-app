@@ -75,6 +75,8 @@
     <string name="reminders_empty">Напоминаний нет.\nПопробуй: «завтра в 9 позвонить в поликлинику».</string>
     <string name="reminder_no_time">Без времени</string>
     <string name="reminder_action_done">Готово</string>
+    <string name="reminder_action_snooze_10">+10 мин</string>
+    <string name="reminder_action_snooze_60">+1 час</string>
     <string name="repeat_daily">каждый день</string>
     <string name="repeat_weekly">по %1$s</string>
     <string name="channel_reminders">Напоминания</string>
