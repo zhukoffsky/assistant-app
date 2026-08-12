@@ -170,20 +170,6 @@ private fun CategoryHeader(category: ShoppingCategory) {
     )
 }
 
-/** Название отдела живёт в ресурсах: список двуязычный. */
-private val ShoppingCategory.labelRes: Int
-    get() = when (this) {
-        ShoppingCategory.PRODUCE -> R.string.category_produce
-        ShoppingCategory.BAKERY -> R.string.category_bakery
-        ShoppingCategory.DAIRY -> R.string.category_dairy
-        ShoppingCategory.MEAT -> R.string.category_meat
-        ShoppingCategory.GROCERY -> R.string.category_grocery
-        ShoppingCategory.FROZEN -> R.string.category_frozen
-        ShoppingCategory.DRINKS -> R.string.category_drinks
-        ShoppingCategory.HOUSEHOLD -> R.string.category_household
-        ShoppingCategory.OTHER -> R.string.category_other
-    }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableRow(

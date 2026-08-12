@@ -38,11 +38,14 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.action.actionParametersOf
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.settings.ShoppingPreferences
 import com.zhukoffsky.magpie.core.settings.forSelectedLanguage
 import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
+import com.zhukoffsky.magpie.feature.shopping.ui.labelRes
 import kotlinx.coroutines.flow.first
 
 /**
@@ -78,10 +81,17 @@ class ShoppingWidget : GlanceAppWidget() {
         // `stringResource` нет, всё идёт через контекст.
         val strings = context.forSelectedLanguage()
 
+        // Настройка читается тем же способом, что и список: виджет обязан
+        // выглядеть как экран, иначе он врёт о состоянии списка.
+        val preferences = ShoppingPreferences(context)
+        val initialGrouped = preferences.groupByCategory.first()
+
         provideContent {
             val items by repository.observeItems().collectAsState(initial = initial)
+            val grouped by preferences.groupByCategory.collectAsState(initial = initialGrouped)
+
             GlanceTheme(colors = MagpieGlanceColors) {
-                WidgetContent(context = strings, items = items)
+                WidgetContent(context = strings, items = items, grouped = grouped)
             }
         }
     }
@@ -92,7 +102,7 @@ class ShoppingWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun WidgetContent(context: Context, items: List<ShoppingItem>) {
+private fun WidgetContent(context: Context, items: List<ShoppingItem>, grouped: Boolean) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -112,22 +122,54 @@ private fun WidgetContent(context: Context, items: List<ShoppingItem>) {
             )
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
-                items(items = items, itemId = { it.id }) { item ->
-                    CheckBox(
-                        checked = item.isChecked,
-                        onCheckedChange = actionRunCallback<ToggleShoppingItemAction>(
-                            actionParametersOf(
-                                ToggleShoppingItemAction.ITEM_ID to item.id,
-                                ToggleShoppingItemAction.IS_CHECKED to item.isChecked,
-                            ),
-                        ),
-                        text = item.title,
-                        modifier = GlanceModifier.padding(vertical = 2.dp),
-                    )
+                if (grouped) {
+                    /*
+                     * Отделы разворачиваются в один плоский список с
+                     * заголовками: у `LazyColumn` в Glance нет ни вложенных
+                     * списков, ни липких заголовков — только строки.
+                     *
+                     * Идентификаторы заголовков берутся из отрицательного
+                     * диапазона: у строк это идентификаторы записей, и
+                     * пересечься с ними нельзя.
+                     */
+                    ShoppingCategory.entries.forEach { category ->
+                        val inCategory = items.filter { it.category == category }
+                        if (inCategory.isEmpty()) return@forEach
+
+                        item(itemId = -(category.ordinal + 1).toLong()) {
+                            Text(
+                                text = context.getString(category.labelRes),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                ),
+                                modifier = GlanceModifier.padding(top = 8.dp, bottom = 2.dp),
+                            )
+                        }
+                        items(items = inCategory, itemId = { it.id }) { ItemRow(it) }
+                    }
+                } else {
+                    items(items = items, itemId = { it.id }) { ItemRow(it) }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ItemRow(item: ShoppingItem) {
+    CheckBox(
+        checked = item.isChecked,
+        onCheckedChange = actionRunCallback<ToggleShoppingItemAction>(
+            actionParametersOf(
+                ToggleShoppingItemAction.ITEM_ID to item.id,
+                ToggleShoppingItemAction.IS_CHECKED to item.isChecked,
+            ),
+        ),
+        text = item.title,
+        modifier = GlanceModifier.padding(vertical = 2.dp),
+    )
 }
 
 @Composable
