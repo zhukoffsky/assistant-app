@@ -26,6 +26,7 @@ import com.zhukoffsky.magpie.core.sync.WorkManagerSyncTrigger
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import java.time.Duration
 import retrofit2.Retrofit
 import com.zhukoffsky.magpie.feature.meds.alarm.AlarmManagerMedScheduler
@@ -84,9 +85,16 @@ class AppContainer(context: Context) {
      * маршрут длинный и нестабильный, так что одна потерянная попытка — это
      * не «редкий случай», а обычный день.
      *
+     * **Повторяется не только исключение, но и ответ.** Первая версия ловила
+     * только брошенное — и в тот же вечер пропустила настоящую причину:
+     * z.ai ответил `429 Too Many Requests`, то есть штатным ответом с кодом,
+     * а не обрывом. Для OkHttp это успех, повтора не было, и весь список
+     * снова приехал одной строкой.
+     *
      * Повтор ровно один: запрос идёт, пока человек смотрит на карточку
      * «Разбираю список…», и растягивать ожидание вдвое ради третьей попытки
-     * хуже, чем разобрать правилами.
+     * хуже, чем разобрать правилами. Пауза перед ним нужна именно из-за
+     * `429`: мгновенная попытка упрётся в тот же лимит.
      */
     private val httpClient by lazy {
         OkHttpClient.Builder()
@@ -95,11 +103,29 @@ class AppContainer(context: Context) {
             .writeTimeout(HTTP_TIMEOUT)
             .addInterceptor { chain ->
                 val request = chain.request()
-                runCatching { chain.proceed(request) }
-                    .getOrElse { chain.proceed(request) }
+                val first = runCatching { chain.proceed(request) }.getOrNull()
+
+                if (first != null && !first.isTemporaryFailure()) {
+                    first
+                } else {
+                    // Тело обязано быть закрыто до повтора: иначе соединение
+                    // остаётся занятым и утекает из пула.
+                    first?.close()
+                    Thread.sleep(RETRY_DELAY_MILLIS)
+                    chain.proceed(request)
+                }
             }
             .build()
     }
+
+    /**
+     * Стоит ли пробовать ещё раз.
+     *
+     * `429` — лимит частоты, он проходит сам. `5xx` — беда на той стороне,
+     * тоже нередко разовая. Всё остальное (`401` с чужим ключом, `404` не по
+     * тому адресу) повтором не лечится и только тратит время человека.
+     */
+    private fun Response.isTemporaryFailure(): Boolean = code == 429 || code >= 500
 
     private inline fun <reified T> retrofit(baseUrl: String): T = Retrofit.Builder()
         .baseUrl(baseUrl)
@@ -181,5 +207,14 @@ class AppContainer(context: Context) {
 
     private companion object {
         val HTTP_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        /**
+         * Пауза перед единственным повтором.
+         *
+         * Полторы секунды — компромисс: лимит частоты за это время нередко
+         * отпускает, а человек всё ещё смотрит на карточку разбора и не
+         * успевает решить, что приложение зависло.
+         */
+        const val RETRY_DELAY_MILLIS = 1_500L
     }
 }
