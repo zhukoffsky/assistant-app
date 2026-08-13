@@ -147,7 +147,13 @@ class MedRepository(
         val dose = DoseCycle.doseFor(course, plannedAt.atZone(clock.zone).toLocalDate())
             ?: return null
 
-        val intake = dao.intakeAt(course.id, plannedAt)?.toDomain()
+        val existing = dao.intakeAt(course.id, plannedAt)
+
+        // Будильник отработал — срок отсрочки отслужил своё. Оставленный, он
+        // вернул бы уведомление после ближайшей перезагрузки.
+        if (existing?.snoozedUntil != null) dao.upsertIntake(existing.copy(snoozedUntil = null))
+
+        val intake = existing?.toDomain()
             ?: run {
                 dao.upsertIntake(
                     MedIntakeEntity(
@@ -210,6 +216,7 @@ class MedRepository(
         val existing = dao.intakeAt(course.id, scheduledAt)
         val dose = DoseCycle.doseFor(course, scheduledAt.atZone(clock.zone).toLocalDate()) ?: return
 
+        val at = clock.instant().plus(delay)
         dao.upsertIntake(
             MedIntakeEntity(
                 id = existing?.id ?: 0,
@@ -219,11 +226,38 @@ class MedRepository(
                 status = IntakeStatus.SNOOZED,
                 doseMg = dose,
                 snoozeCount = (existing?.snoozeCount ?: 0) + 1,
+                // Статус говорил только о факте отсрочки; срок нужен,
+                // чтобы вернуть будильник после перезагрузки.
+                snoozedUntil = at,
             ),
         )
 
-        scheduler.scheduleSnooze(clock.instant().plus(delay), scheduledAt)
+        scheduler.scheduleSnooze(at, scheduledAt)
         onChanged()
+    }
+
+    /**
+     * Восстановить будильники после перезагрузки: ежедневный и отсрочку.
+     *
+     * Отдельный метод, а не `scheduleNext`: тот зовётся из каждой отметки
+     * приёма, и восстановление отсрочки в нём воскрешало бы уже отработавшую.
+     *
+     * Просроченная отсрочка стирается, а не срабатывает: телефон мог
+     * пролежать выключенным, и напоминание о вчерашней дозе сегодня утром
+     * скорее собьёт с толку, чем поможет. Сама доза при этом не теряется —
+     * она осталась в истории со своим статусом.
+     */
+    suspend fun rescheduleAll() {
+        scheduleNext()
+
+        val snoozed = dao.snoozedIntake() ?: return
+        val at = snoozed.snoozedUntil ?: return
+
+        if (at.isAfter(clock.instant())) {
+            scheduler.scheduleSnooze(at, snoozed.scheduledAt)
+        } else {
+            dao.upsertIntake(snoozed.copy(snoozedUntil = null))
+        }
     }
 
     /**

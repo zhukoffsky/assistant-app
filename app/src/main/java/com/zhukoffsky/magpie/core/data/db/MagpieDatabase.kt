@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MedCourseEntity::class,
         MedIntakeEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(MagpieConverters::class)
@@ -40,6 +40,24 @@ abstract class MagpieDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE shopping_items ADD COLUMN category TEXT")
+            }
+        }
+
+        /**
+         * Срок отсрочки у напоминаний и у приёмов лекарства.
+         *
+         * До этого отсрочка существовала только как будильник, и
+         * перезагрузка её теряла. Колонки добавляются пустыми: отсрочка —
+         * состояние на ближайшие минуты, восстанавливать её задним числом
+         * нечего и незачем.
+         *
+         * `INTEGER`, потому что `Instant` хранится миллисекундами эпохи —
+         * см. `MagpieConverters`.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reminders ADD COLUMN snoozedUntil INTEGER")
+                db.execSQL("ALTER TABLE med_intakes ADD COLUMN snoozedUntil INTEGER")
             }
         }
     }

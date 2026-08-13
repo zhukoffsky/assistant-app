@@ -27,7 +27,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 MagpieLog.i("boot: rescheduling alarms after ${intent.action}")
                 val container = (appContext as MagpieApp).container
                 container.reminderRepository.rescheduleAll()
-                container.medRepository.scheduleNext()
+                container.medRepository.rescheduleAll()
                 MagpieLog.i("boot: done")
             } finally {
                 pendingResult.finish()

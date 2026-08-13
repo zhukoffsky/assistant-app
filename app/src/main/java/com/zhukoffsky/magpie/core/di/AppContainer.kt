@@ -58,7 +58,10 @@ class AppContainer(context: Context) {
             appContext,
             MagpieDatabase::class.java,
             MagpieDatabase.NAME,
-        ).addMigrations(MagpieDatabase.MIGRATION_1_2).build()
+        ).addMigrations(
+            MagpieDatabase.MIGRATION_1_2,
+            MagpieDatabase.MIGRATION_2_3,
+        ).build()
     }
 
     val shoppingDao by lazy { database.shoppingDao() }
