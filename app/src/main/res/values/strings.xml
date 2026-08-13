@@ -125,7 +125,6 @@
     <string name="widget_reminder_empty">Nothing scheduled</string>
     <string name="widget_meds_description">Dose for today: name, amount and time</string>
     <string name="widget_meds_empty">No course yet</string>
-    <string name="widget_meds_dose">%1$d %2$s</string>
 
     <string name="tile_reminder">Dictate a reminder</string>
     <string name="tile_shopping">Dictate a purchase</string>
@@ -134,9 +133,6 @@
     <string name="shortcut_reminder_long">Dictate a reminder</string>
     <string name="shortcut_shopping_short">Purchase</string>
     <string name="shortcut_shopping_long">Dictate a purchase</string>
-
-    <string name="undo_deleted">Deleted</string>
-    <string name="undo_action">Undo</string>
     <string name="picker_ok">Done</string>
     <string name="picker_cancel">Cancel</string>
     <string name="reminder_edit_title">Edit reminder</string>

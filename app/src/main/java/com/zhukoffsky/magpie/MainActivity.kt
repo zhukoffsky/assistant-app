@@ -1,6 +1,7 @@
 package com.zhukoffsky.magpie
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -58,6 +59,14 @@ class MainActivity : ComponentActivity() {
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
+    /**
+     * `BatteryLife` подавлен на всей функции, а не на ветке: аннотация на
+     * ветке `when` lint'ом не читается.
+     *
+     * Возражает он по политике Google Play, а приложение там не публикуется —
+     * то же рассуждение, что и с `USE_EXACT_ALARM`.
+     */
+    @SuppressLint("BatteryLife")
     private fun openFix(fix: DiagnosticFix) {
         when (fix) {
             DiagnosticFix.NOTIFICATION_PERMISSION -> {

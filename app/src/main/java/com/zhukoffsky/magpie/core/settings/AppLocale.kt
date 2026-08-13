@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.settings
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.os.LocaleList
@@ -20,6 +21,10 @@ import java.util.Locale
  * `rememberLauncherForActivityResult`. Строителю уведомления активность не
  * нужна вовсе — ему нужны только ресурсы.
  */
+// lint ждёт здесь вызовов Play Core: при доставке через app bundle язык
+// может быть просто не скачан. Приложение раздаётся цельным APK со всеми
+// языками внутри, скачивать нечего.
+@SuppressLint("AppBundleLocaleChanges")
 fun Context.forLanguage(language: AppLanguage): Context {
     val tag = language.tag ?: return this
 
