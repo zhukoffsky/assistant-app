@@ -3,14 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <!--
-      Своё окно записи вместо системного диалога: слушаем мы, значит и
-      микрофон открываем мы. Раньше разрешение было не нужно вовсе —
-      `RecognizerIntent` писал звук в чужом процессе, — но чужой диалог
-      обрывал фразу на первой же паузе, а список покупок диктуют с паузами.
-    -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -43,8 +35,10 @@
 
     <!--
       Android 11+ прячет от приложения чужие пакеты. Без этого блока
-      распознаватель речи не виден: `SpeechRecognizer.isRecognitionAvailable`
-      возвращает false, и распознавать нечем.
+      распознаватель речи не виден и запуск падает в ActivityNotFoundException.
+
+      Разрешение RECORD_AUDIO не объявлено намеренно: записывает
+      приложение-распознаватель в своём процессе, нам микрофон не нужен.
     -->
     <queries>
         <intent>

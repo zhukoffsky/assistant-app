@@ -48,7 +48,10 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.feature.reminders.ui.dueHeadline
 import com.zhukoffsky.magpie.feature.reminders.ui.dueLabel
 
-/** Оверлей поверх прозрачной активности: за ним виден тот самый список. */
+/**
+ * Оверлей поверх прозрачной активности: пока идёт распознавание, на экране
+ * системный диалог, и своего интерфейса быть не должно.
+ */
 @Composable
 fun VoiceCaptureScreen(
     state: VoiceCaptureUiState,
@@ -56,69 +59,9 @@ fun VoiceCaptureScreen(
     onUndo: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
-    onFinishListening: () -> Unit,
 ) {
     when (state) {
-        VoiceCaptureUiState.Done -> Unit
-
-        is VoiceCaptureUiState.Listening -> BottomCard {
-            CardHeader(
-                stringResource(
-                    when (target) {
-                        VoiceTarget.SHOPPING -> R.string.voice_prompt_shopping
-                        VoiceTarget.REMINDER -> R.string.voice_prompt_reminder
-                    },
-                ),
-            )
-            Text(
-                // Пока не сказано ни слова — подсказка, дальше живой текст.
-                // Он тут не для красоты: без него непонятно, слышат ли вообще,
-                // и человек начинает говорить громче вместо того, чтобы
-                // продолжать.
-                text = state.heard.ifEmpty {
-                    stringResource(
-                        when (target) {
-                            VoiceTarget.SHOPPING -> R.string.voice_listening_shopping
-                            VoiceTarget.REMINDER -> R.string.voice_listening_reminder
-                        },
-                    )
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (state.heard.isEmpty()) MagpieTheme.colors.ink2 else MagpieTheme.colors.ink,
-                modifier = Modifier
-                    .heightIn(max = 240.dp)
-                    .verticalScroll(rememberScrollState()),
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
-
-                /*
-                 * Кнопка только у покупок.
-                 *
-                 * Список диктуют с паузами: назвал три позиции, вспоминаешь
-                 * четвёртую. Заканчивать должен человек, иначе пауза обрывает
-                 * запись — ровно то, из-за чего системный диалог и заменён
-                 * своим. Напоминание — одна короткая фраза, там лишний тап
-                 * съел бы всю скорость, и запись заканчивает тишина.
-                 */
-                if (target == VoiceTarget.SHOPPING) {
-                    Button(
-                        onClick = onFinishListening,
-                        modifier = Modifier.padding(start = 8.dp),
-                        shape = RoundedCornerShape(MagpieRadius.sm),
-                    ) {
-                        Text(stringResource(R.string.voice_done))
-                    }
-                }
-            }
-        }
+        is VoiceCaptureUiState.Listening, VoiceCaptureUiState.Done -> Unit
 
         is VoiceCaptureUiState.Parsing -> BottomCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -197,7 +140,6 @@ fun VoiceCaptureScreen(
             val messageRes = when (state.reason) {
                 VoiceFailure.NO_RECOGNIZER -> R.string.voice_error_no_recognizer
                 VoiceFailure.NOTHING_RECOGNIZED -> R.string.voice_error_nothing_recognized
-                VoiceFailure.NO_PERMISSION -> R.string.voice_error_no_permission
             }
             Text(
                 text = stringResource(messageRes),
@@ -212,7 +154,7 @@ fun VoiceCaptureScreen(
                 horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
-                if (state.reason == VoiceFailure.NOTHING_RECOGNIZED) {
+                if (state.reason != VoiceFailure.NO_RECOGNIZER) {
                     Button(
                         onClick = onRetry,
                         shape = RoundedCornerShape(MagpieRadius.sm),

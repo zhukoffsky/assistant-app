@@ -107,10 +107,6 @@
     <string name="voice_saved_reminder_title">I will remind you</string>
     <string name="voice_undo">Undo</string>
     <string name="voice_retry">Retry</string>
-    <string name="voice_done">Done</string>
-    <string name="voice_listening_shopping">Speak — the list is put together as you go, tap Done when finished</string>
-    <string name="voice_listening_reminder">Listening…</string>
-    <string name="voice_error_no_permission">Without the microphone the app cannot record. Allow access in the system settings.</string>
     <string name="date_today">Today</string>
     <string name="date_tomorrow">Tomorrow</string>
     <string name="voice_close">Close</string>
@@ -132,6 +128,9 @@
     <string name="shortcut_reminder_long">Dictate a reminder</string>
     <string name="shortcut_shopping_short">Purchase</string>
     <string name="shortcut_shopping_long">Dictate a purchase</string>
+
+    <string name="undo_deleted">Deleted</string>
+    <string name="undo_action">Undo</string>
     <string name="picker_ok">Done</string>
     <string name="picker_cancel">Cancel</string>
     <string name="reminder_edit_title">Edit reminder</string>
