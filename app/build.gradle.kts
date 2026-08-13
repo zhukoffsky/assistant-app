@@ -25,6 +25,11 @@ val speechAccountId: String = localProperties.getProperty("cloudflareAccountId")
 val speechApiToken: String = localProperties.getProperty("cloudflareApiToken").orEmpty()
 
 plugins {
+    /*
+     * `kotlin.android` применяется по-прежнему, хотя AGP 9 умеет Kotlin сам.
+     * Причина — в `gradle.properties`: со встроенным Kotlin не работает KSP,
+     * а он нужен Room. Поэтому встроенный выключен, и плагин снова обязателен.
+     */
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -50,7 +55,7 @@ android {
      * обновлением библиотек. Приложение не публикуется в Play, поэтому
      * никакого срока по нему нет.
      */
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.zhukoffsky.magpie"
@@ -78,10 +83,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -114,6 +115,19 @@ android {
  */
 room {
     schemaDirectory("$projectDir/schemas")
+}
+
+/**
+ * Цель JVM для Kotlin.
+ *
+ * Раньше стояла в `android.kotlinOptions`, которого с AGP 9 нет: Kotlin
+ * встроен, и настраивается он своим блоком. Значение то же, что у Java
+ * выше, — расхождение этих двух ломает сборку без внятной причины.
+ */
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
