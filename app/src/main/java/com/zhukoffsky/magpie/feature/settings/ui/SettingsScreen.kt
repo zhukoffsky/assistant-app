@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -460,7 +458,9 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            imageVector = if (check.isOk) Icons.Default.CheckCircle else Icons.Default.Warning,
+            painter = painterResource(
+                if (check.isOk) R.drawable.ic_check_circle else R.drawable.ic_warning,
+            ),
             contentDescription = null,
             // Проблема — янтарь, а не красный: это не авария, а настройка,
             // которую можно поправить.

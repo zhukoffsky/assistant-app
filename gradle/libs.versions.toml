@@ -20,11 +20,6 @@ lifecycle = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.08.00"
 navigationCompose = "2.9.8"
-# Иконки Material больше не приезжают с BOM и заморожены на 1.7.8: Google
-# перестал развивать артефакт. Версия прибита гвоздём намеренно — она
-# последняя существующая, а не отставшая. Уйти от неё значит перерисовать
-# девять иконок своими векторами; когда понадобится, это отдельная работа.
-composeMaterialIcons = "1.7.8"
 room = "2.8.4"
 glance = "1.1.1"
 work = "2.11.2"
@@ -50,7 +45,6 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core", version.ref = "composeMaterialIcons" }
 
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
