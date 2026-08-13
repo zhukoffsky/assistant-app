@@ -15,9 +15,12 @@ import java.io.File
  * держит приложение, и остановить запись нечему, кроме кнопки «Готово»,
  * предела длительности и закрытия экрана.
  *
- * Формат — OggOpus: Android умеет его с API 29 без единой зависимости, а
- * расшифровка принимает без конвертации. Полминуты речи весят около сотни
- * килобайт, то есть уходят одним запросом даже на слабой связи.
+ * Формат — AAC в контейнере MP4. Opus был бы вдвое компактнее, но выбран
+ * не он: расшифровку проверяли настоящим запросом с машины владельца, а
+ * `afconvert` в macOS не умеет Opus — то есть проверить это звено было бы
+ * нечем, и оно осталось бы на вере. AAC проверен сквозным запросом:
+ * тот же текст, тот же ответ. Тридцать два килобита в секунду на моно —
+ * для речи с запасом, полторы минуты весят около трети мегабайта.
  */
 class VoiceRecorder(private val context: Context) {
 
@@ -37,16 +40,16 @@ class VoiceRecorder(private val context: Context) {
         val target = File(context.cacheDir, FILE_NAME)
         val created = newRecorder().apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.OGG)
-            setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setAudioChannels(1)
             setMaxDuration(MAX_DURATION_MILLIS)
             setOutputFile(target.absolutePath)
         }
 
         // Частоту и битрейт задаём отдельно и не считаем обязательными:
-        // набор допустимых значений у Opus зависит от устройства, а
-        // отклонённое значение роняет `prepare` целиком. Речь важнее
+        // набор допустимых значений зависит от устройства, а отклонённое
+        // значение роняет `prepare` целиком. Записанная речь важнее
         // экономии, поэтому при отказе просто берём умолчания.
         val prepared = runCatching {
             created.setAudioSamplingRate(SAMPLE_RATE)
@@ -56,8 +59,8 @@ class VoiceRecorder(private val context: Context) {
             MagpieLog.w("recorder: falling back to default opus settings", it)
             created.reset()
             created.setAudioSource(MediaRecorder.AudioSource.MIC)
-            created.setOutputFormat(MediaRecorder.OutputFormat.OGG)
-            created.setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
+            created.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            created.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             created.setAudioChannels(1)
             created.setMaxDuration(MAX_DURATION_MILLIS)
             created.setOutputFile(target.absolutePath)
@@ -143,17 +146,17 @@ class VoiceRecorder(private val context: Context) {
         }
 
     private companion object {
-        const val FILE_NAME = "dictation.ogg"
+        const val FILE_NAME = "dictation.m4a"
 
         /** Больше распознаванию не нужно: речь укладывается в 16 кГц. */
         const val SAMPLE_RATE = 16_000
-        const val BIT_RATE = 24_000
+        const val BIT_RATE = 32_000
 
         /**
          * Предел длительности.
          *
          * Не про удобство, а про размер запроса: расшифровка принимает файл
-         * целиком, и полутора минут речи (около 270 КБ, в base64 треть
+         * целиком, и полутора минут речи (около 360 КБ, в base64 треть
          * сверху) достаточно с запасом для списка покупок. Упёрлись —
          * запись закончится сама и уйдёт в разбор, ничего не потеряв.
          */
