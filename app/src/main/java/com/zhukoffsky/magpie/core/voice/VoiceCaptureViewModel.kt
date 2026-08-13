@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
+import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
@@ -27,11 +28,36 @@ enum class VoiceFailure {
 
     /** Пользователь закрыл диалог распознавания или ничего не сказал. */
     NOTHING_RECOGNIZED,
+
+    /** Без микрофона своя запись невозможна. */
+    NO_PERMISSION,
+
+    /** Микрофон занят: звонок или запись в другом приложении. */
+    NO_MICROPHONE,
+
+    /**
+     * Записали, но расшифровать не смогли: нет сети, нет ключей в сборке,
+     * сервис отказал. Запись при этом уже не вернуть, поэтому сообщение
+     * предлагает продиктовать заново.
+     */
+    TRANSCRIPTION_FAILED,
 }
 
 sealed interface VoiceCaptureUiState {
     /** Открыт системный диалог распознавания, своего интерфейса не показываем. */
     data object Listening : VoiceCaptureUiState
+
+    /**
+     * Идёт своя запись, и закончить её может только человек.
+     *
+     * [seconds] и [level] нужны, чтобы карточка не выглядела застывшей:
+     * без обратной связи непонятно, слышат ли вообще, и люди начинают
+     * говорить громче вместо того, чтобы продолжать.
+     */
+    data class Recording(val seconds: Int = 0, val level: Float = 0f) : VoiceCaptureUiState
+
+    /** Запись ушла на расшифровку. */
+    data object Transcribing : VoiceCaptureUiState
 
     /** Фраза распознана, идёт разбор. Может занять секунду-две, если зовём LLM. */
     data object Parsing : VoiceCaptureUiState
@@ -62,10 +88,27 @@ class VoiceCaptureViewModel(
     private val reminderRepository: ReminderRepository,
     private val parser: PhraseParser,
     private val shoppingParser: ShoppingItemsParser,
+    private val transcriber: SpeechTranscriber,
+    private val canTranscribe: Boolean = true,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<VoiceCaptureUiState>(VoiceCaptureUiState.Listening)
+    /**
+     * Два входа различаются с самого начала.
+     *
+     * Список покупок пишем сами: его диктуют с паузами, и заканчивать
+     * должен человек. Напоминание — одна короткая фраза, там системный
+     * диалог быстрее всего, и городить свою запись ради него незачем.
+     *
+     * Если расшифровывать нечем (сборка без ключей), покупки тоже уходят в
+     * диалог: своя запись без расшифровки — это просто потерянный звук.
+     */
+    private fun initialState(): VoiceCaptureUiState = when {
+        target == VoiceTarget.SHOPPING && canTranscribe -> VoiceCaptureUiState.Recording()
+        else -> VoiceCaptureUiState.Listening
+    }
+
+    private val _uiState = MutableStateFlow(initialState())
     val uiState: StateFlow<VoiceCaptureUiState> = _uiState.asStateFlow()
 
     private var recognitionLaunched = false
@@ -81,6 +124,54 @@ class VoiceCaptureViewModel(
         if (recognitionLaunched || _uiState.value !is VoiceCaptureUiState.Listening) return false
         recognitionLaunched = true
         return true
+    }
+
+    /** То же самое для своей записи: один раз на попытку. */
+    fun shouldStartRecording(): Boolean {
+        if (recognitionLaunched || _uiState.value !is VoiceCaptureUiState.Recording) return false
+        recognitionLaunched = true
+        return true
+    }
+
+    /** Секунды и уровень с работающего рекордера. */
+    fun onRecordingTick(seconds: Int, level: Float) {
+        if (_uiState.value !is VoiceCaptureUiState.Recording) return
+        _uiState.value = VoiceCaptureUiState.Recording(seconds = seconds, level = level)
+    }
+
+    fun onPermissionDenied() {
+        _uiState.value = VoiceCaptureUiState.Failed(VoiceFailure.NO_PERMISSION)
+    }
+
+    fun onMicrophoneUnavailable() {
+        _uiState.value = VoiceCaptureUiState.Failed(VoiceFailure.NO_MICROPHONE)
+    }
+
+    /**
+     * Запись закончена — расшифровываем и дальше идём общим путём.
+     *
+     * @param audio файл целиком; null — записать не удалось или в записи
+     *        не оказалось звука (нажали «Готово» мгновенно).
+     */
+    fun onAudioRecorded(audio: ByteArray?, languageTag: String) {
+        if (audio == null) {
+            _uiState.value = failure()
+            return
+        }
+        if (transcribing) return
+        transcribing = true
+        _uiState.value = VoiceCaptureUiState.Transcribing
+
+        viewModelScope.launch {
+            val text = transcriber.transcribe(audio, languageTag)
+            transcribing = false
+
+            if (text.isNullOrBlank()) {
+                _uiState.value = VoiceCaptureUiState.Failed(VoiceFailure.TRANSCRIPTION_FAILED)
+                return@launch
+            }
+            onRecognitionResult(text)
+        }
     }
 
     /** @param spoken распознанная фраза; null — отмена, ошибка или тишина. */
@@ -178,7 +269,8 @@ class VoiceCaptureViewModel(
     fun onRetry() {
         recognitionLaunched = false
         saving = false
-        _uiState.value = VoiceCaptureUiState.Listening
+        transcribing = false
+        _uiState.value = initialState()
     }
 
     /**
@@ -192,6 +284,7 @@ class VoiceCaptureViewModel(
      */
     private var saving = false
     private var undoing = false
+    private var transcribing = false
 
     private var autoClose: Job? = null
 
@@ -221,6 +314,8 @@ class VoiceCaptureViewModel(
                     reminderRepository = container.reminderRepository,
                     parser = container.phraseParser,
                     shoppingParser = container.shoppingItemsParser,
+                    transcriber = container.speechTranscriber,
+                    canTranscribe = container.speechAvailable,
                 )
             }
         }

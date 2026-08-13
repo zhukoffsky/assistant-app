@@ -107,6 +107,12 @@
     <string name="voice_saved_reminder_title">Напомню</string>
     <string name="voice_undo">Отменить</string>
     <string name="voice_retry">Повторить</string>
+    <string name="voice_done">Готово</string>
+    <string name="voice_recording_hint">Идёт запись. Не торопись — нажми «Готово», когда список закончится.</string>
+    <string name="voice_transcribing">Разбираю запись…</string>
+    <string name="voice_error_no_permission">Без микрофона записывать нечем. Разреши доступ в настройках системы.</string>
+    <string name="voice_error_no_microphone">Микрофон занят: разговор или запись в другом приложении.</string>
+    <string name="voice_error_transcription">Не удалось разобрать запись. Продиктуй ещё раз.</string>
     <string name="date_today">Сегодня</string>
     <string name="date_tomorrow">Завтра</string>
     <string name="voice_close">Закрыть</string>

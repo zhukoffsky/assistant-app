@@ -3,6 +3,18 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Микрофон нужен для диктовки списка покупок: её пишет само приложение.
+      До 13 августа разрешение было не нужно — записывал распознаватель в
+      своём процессе, — но он же заканчивал запись на первой паузе, а
+      список диктуют именно с паузами.
+
+      Напоминание по-прежнему идёт через системный диалог и микрофона у нас
+      не просит: одна короткая фраза, конец по тишине — это ровно то, что
+      диалог и делает.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 

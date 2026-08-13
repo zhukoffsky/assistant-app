@@ -40,6 +40,8 @@ class VoiceCaptureViewModelTest {
     private fun viewModel(
         target: VoiceTarget,
         scheduler: ReminderScheduler = RecordingScheduler(),
+        transcript: String? = null,
+        canTranscribe: Boolean = true,
     ) = VoiceCaptureViewModel(
         target = target,
         shoppingRepository = ShoppingRepository(shoppingDao, clock),
@@ -47,6 +49,10 @@ class VoiceCaptureViewModelTest {
         parser = HybridPhraseParser(rules = RuleBasedPhraseParser(), llm = null),
         // Без LLM: в тестах сети нет, а правил хватает для фраз с запятыми.
         shoppingParser = RuleBasedShoppingParser(),
+        // Расшифровка подменяется целиком: сети в тестах нет, а проверяем мы
+        // то, что происходит с текстом после неё.
+        transcriber = { _, _ -> transcript },
+        canTranscribe = canTranscribe,
         clock = clock,
     )
 
@@ -175,8 +181,8 @@ class VoiceCaptureViewModelTest {
     }
 
     @Test
-    fun `retry returns to listening and re-arms the recogniser`() {
-        val vm = viewModel(VoiceTarget.SHOPPING)
+    fun `retry returns a reminder to the dialog and re-arms it`() {
+        val vm = viewModel(VoiceTarget.REMINDER)
         vm.onRecognitionResult(null)
 
         vm.onRetry()
@@ -185,12 +191,70 @@ class VoiceCaptureViewModelTest {
         assertEquals(true, vm.shouldStartRecognition())
     }
 
+    /**
+     * У покупок другая точка старта, и это не деталь: список пишет само
+     * приложение, потому что чужая сессия заканчивается на первой паузе.
+     */
     @Test
-    fun `recogniser is launched only once per attempt`() {
+    fun `retry returns shopping to recording and re-arms it`() {
+        val vm = viewModel(VoiceTarget.SHOPPING)
+        vm.onRecognitionResult(null)
+
+        vm.onRetry()
+
+        assertEquals(VoiceCaptureUiState.Recording(), vm.uiState.value)
+        assertEquals(true, vm.shouldStartRecording())
+    }
+
+    /**
+     * Сборка без ключей расшифровки обязана остаться рабочей: покупки
+     * уходят в системный диалог, а не в запись, которую некуда деть.
+     */
+    @Test
+    fun `without transcription shopping falls back to the dialog`() {
+        val vm = viewModel(VoiceTarget.SHOPPING, canTranscribe = false)
+
+        assertEquals(VoiceCaptureUiState.Listening, vm.uiState.value)
+        assertEquals(true, vm.shouldStartRecognition())
+        assertEquals(false, vm.shouldStartRecording())
+    }
+
+    @Test
+    fun `recording starts only once per attempt`() {
         val vm = viewModel(VoiceTarget.SHOPPING)
 
-        assertEquals(true, vm.shouldStartRecognition())
-        assertEquals(false, vm.shouldStartRecognition())
+        assertEquals(true, vm.shouldStartRecording())
+        assertEquals(false, vm.shouldStartRecording())
+    }
+
+    @Test
+    fun `a transcribed recording becomes items in the list`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING, transcript = "молоко, хлеб, яйца")
+
+        vm.onAudioRecorded(ByteArray(16), "ru-RU")
+
+        assertEquals(
+            listOf("молоко", "хлеб", "яйца"),
+            shoppingDao.items.value.map { it.title },
+        )
+    }
+
+    /**
+     * Запись, которую не расшифровали, обязана сказать об этом.
+     *
+     * Тихий откат здесь хуже всего: звука уже нет, повторить его нечем, и
+     * молчание выглядит как «приложение просто не сработало».
+     */
+    @Test
+    fun `a recording that cannot be transcribed is reported`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING, transcript = null)
+
+        vm.onAudioRecorded(ByteArray(16), "ru-RU")
+
+        assertEquals(
+            VoiceCaptureUiState.Failed(VoiceFailure.TRANSCRIPTION_FAILED),
+            vm.uiState.value,
+        )
     }
 
     private class RecordingScheduler : ReminderScheduler {

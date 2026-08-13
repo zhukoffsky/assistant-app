@@ -107,6 +107,12 @@
     <string name="voice_saved_reminder_title">I will remind you</string>
     <string name="voice_undo">Undo</string>
     <string name="voice_retry">Retry</string>
+    <string name="voice_done">Done</string>
+    <string name="voice_recording_hint">Recording. Take your time — tap Done when the list is finished.</string>
+    <string name="voice_transcribing">Making out the words…</string>
+    <string name="voice_error_no_permission">Without the microphone the app cannot record. Allow access in the system settings.</string>
+    <string name="voice_error_no_microphone">The microphone is busy — a call or another app is using it.</string>
+    <string name="voice_error_transcription">Could not make out the recording. Please dictate again.</string>
     <string name="date_today">Today</string>
     <string name="date_tomorrow">Tomorrow</string>
     <string name="voice_close">Close</string>

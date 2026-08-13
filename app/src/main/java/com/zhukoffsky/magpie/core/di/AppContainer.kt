@@ -11,6 +11,9 @@ import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
 import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
 import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
+import com.zhukoffsky.magpie.core.speech.CloudflareWhisperApi
+import com.zhukoffsky.magpie.core.speech.CloudflareWhisperTranscriber
+import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
 import com.zhukoffsky.magpie.feature.shopping.domain.HybridShoppingParser
 import com.zhukoffsky.magpie.feature.shopping.domain.RuleBasedShoppingParser
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
@@ -167,6 +170,33 @@ class AppContainer(context: Context) {
                 api = retrofit(OpenAiCompatApi.BASE_URL),
                 apiKey = { apiKey },
             ),
+        )
+    }
+
+    /**
+     * Расшифровка записанного голоса.
+     *
+     * Ключи из сборки, как и у LLM, и по той же причине: в репозитории их
+     * нет, а вводить их в приложении негде. Пустые — диктовка покупок
+     * скажет, что не может расшифровать, и предложит продиктовать заново.
+     */
+    /**
+     * Есть ли чем расшифровывать.
+     *
+     * Сборка без ключей — штатный случай (CI, чужая машина), и ломать в ней
+     * диктовку нельзя. Своя запись без расшифровки бесполезна: звук взять
+     * некуда, поэтому покупки в такой сборке идут через системный диалог —
+     * с обрывом на паузе, но рабочие.
+     */
+    val speechAvailable: Boolean
+        get() = BuildConfig.SPEECH_ACCOUNT_ID.isNotBlank() &&
+            BuildConfig.SPEECH_API_TOKEN.isNotBlank()
+
+    val speechTranscriber: SpeechTranscriber by lazy {
+        CloudflareWhisperTranscriber(
+            api = retrofit(CloudflareWhisperApi.BASE_URL),
+            accountId = BuildConfig.SPEECH_ACCOUNT_ID,
+            apiToken = BuildConfig.SPEECH_API_TOKEN,
         )
     }
 
