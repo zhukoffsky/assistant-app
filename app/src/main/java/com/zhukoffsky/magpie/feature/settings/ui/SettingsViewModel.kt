@@ -11,7 +11,6 @@ import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
 import com.zhukoffsky.magpie.core.quickaccess.QuickAccessItem
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
-import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.core.settings.AppLanguage
 import com.zhukoffsky.magpie.core.settings.AppearancePreferences
 import com.zhukoffsky.magpie.core.settings.ShoppingPreferences
@@ -31,13 +30,11 @@ data class SettingsUiState(
     val checks: List<DiagnosticCheck> = emptyList(),
     val quickAccess: List<QuickAccessItem> = emptyList(),
     /** Проставляется после запуска теста, чтобы показать подсказку. */
-    val testScheduled: Boolean = false,
 )
 
 class SettingsViewModel(
     private val inspector: DiagnosticsInspector,
     private val quickAccessInspector: QuickAccessInspector,
-    private val testAlarmScheduler: TestAlarmScheduler,
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
     private val appearance: AppearancePreferences,
@@ -102,10 +99,6 @@ class SettingsViewModel(
         )
     }
 
-    fun onTestNotification() {
-        testAlarmScheduler.scheduleInAMinute()
-        _uiState.value = _uiState.value.copy(testScheduled = true)
-    }
 
     fun onConnectGoogle() {
         viewModelScope.launch {
@@ -160,7 +153,6 @@ class SettingsViewModel(
                 SettingsViewModel(
                     inspector = container.diagnosticsInspector,
                     quickAccessInspector = container.quickAccessInspector,
-                    testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,
                     // Мимо AppContainer: DataStore всё равно один на процесс,

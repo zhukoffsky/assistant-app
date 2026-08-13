@@ -6,7 +6,6 @@ import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
-import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
 import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
@@ -238,7 +237,6 @@ class AppContainer(context: Context) {
 
     val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
     val quickAccessInspector by lazy { QuickAccessInspector(appContext) }
-    val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
 
     private companion object {
         val HTTP_TIMEOUT: Duration = Duration.ofSeconds(30)

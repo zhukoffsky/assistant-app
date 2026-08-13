@@ -158,41 +158,6 @@ fun SettingsScreen(
             }
         }
 
-        SettingsCard {
-            Text(
-                text = stringResource(R.string.diag_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MagpieTheme.colors.ink,
-            )
-            Text(
-                text = stringResource(
-                    if (problems.isEmpty()) R.string.diag_all_good else R.string.diag_test_hint,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MagpieTheme.colors.ink2,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-
-            Button(
-                onClick = viewModel::onTestNotification,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .height(52.dp),
-                shape = RoundedCornerShape(MagpieRadius.md),
-            ) {
-                Text(stringResource(R.string.diag_test_button))
-            }
-            if (state.testScheduled) {
-                Text(
-                    text = stringResource(R.string.diag_test_scheduled),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MagpieTheme.colors.ink2,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-
         // Нижняя навигация плавающая и перекрывает край содержимого.
         Spacer(modifier = Modifier.height(12.dp))
     }
