@@ -43,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.meds.ui.MedsScreen
 import com.zhukoffsky.magpie.feature.reminders.ui.RemindersScreen
@@ -53,6 +54,7 @@ import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 fun MagpieAppScaffold(
     onVoiceCapture: (VoiceTarget) -> Unit,
     onOpenFix: (DiagnosticFix) -> Unit,
+    onQuickAccessAdd: (QuickAccessTarget) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -95,7 +97,7 @@ fun MagpieAppScaffold(
                         MedsScreen()
                     }
                     composable(MagpieDestination.Settings.route) {
-                        SettingsScreen(onOpenFix = onOpenFix)
+                        SettingsScreen(onOpenFix = onOpenFix, onQuickAccessAdd = onQuickAccessAdd)
                     }
                 }
             }

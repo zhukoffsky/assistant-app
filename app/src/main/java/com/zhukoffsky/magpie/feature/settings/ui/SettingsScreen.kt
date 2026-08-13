@@ -53,6 +53,8 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessItem
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.sync.SyncSettings
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -61,6 +63,7 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     onOpenFix: (DiagnosticFix) -> Unit,
+    onQuickAccessAdd: (QuickAccessTarget) -> Unit,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,6 +112,10 @@ fun SettingsScreen(
             onThemeModeSelected = viewModel::onThemeModeSelected,
             onLanguageSelected = viewModel::onLanguageSelected,
         )
+
+        if (state.quickAccess.isNotEmpty()) {
+            QuickAccessCard(items = state.quickAccess, onAdd = onQuickAccessAdd)
+        }
 
         ShoppingCard(
             groupByCategory = groupByCategory,
@@ -489,6 +496,64 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
         if (!check.isOk && fix != null) {
             TextButton(onClick = { onOpenFix(fix) }) {
                 Text(stringResource(R.string.diag_fix))
+            }
+        }
+    }
+}
+
+/**
+ * Быстрые точки входа — предложение, а не список настроек.
+ *
+ * Смысл приложения в том, чтобы от намерения до микрофона был один тап, но
+ * до виджета и плитки надо ещё добраться: открыть редактор лаунчера, найти
+ * «Сороку» среди чужих виджетов, перетащить. Здесь то же самое делает
+ * система по нашей просьбе.
+ *
+ * Уже поставленный виджет показывается строкой без кнопки: врать «добавь
+ * меня» тому, кто уже добавил, — худший вид навязчивости.
+ */
+@Composable
+private fun QuickAccessCard(
+    items: List<QuickAccessItem>,
+    onAdd: (QuickAccessTarget) -> Unit,
+) {
+    SettingsCard {
+        Text(
+            text = stringResource(R.string.quick_access_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MagpieTheme.colors.ink,
+        )
+        Text(
+            text = stringResource(R.string.quick_access_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MagpieTheme.colors.ink2,
+            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+        )
+
+        items.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(item.target.labelRes),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                if (item.isPlaced) {
+                    Text(
+                        text = stringResource(R.string.quick_placed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MagpieTheme.colors.ink2,
+                    )
+                } else {
+                    TextButton(onClick = { onAdd(item.target) }) {
+                        Text(stringResource(R.string.quick_add))
+                    }
+                }
             }
         }
     }

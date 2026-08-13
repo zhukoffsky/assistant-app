@@ -11,6 +11,7 @@ import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
 import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
 import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperApi
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperTranscriber
 import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
@@ -236,6 +237,7 @@ class AppContainer(context: Context) {
     }
 
     val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
+    val quickAccessInspector by lazy { QuickAccessInspector(appContext) }
     val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
 
     private companion object {

@@ -138,4 +138,13 @@
     <string name="reminder_edit_title">Edit reminder</string>
     <string name="reminder_edit_name">What to remind about</string>
     <string name="reminder_edit_repeat_note">The repeat rule stays as it is; only this occurrence moves.</string>
+    <string name="quick_access_title">Quick access</string>
+    <string name="quick_access_note">A widget or a tile is the shortest way to dictate. The system will ask where to put it.</string>
+    <string name="quick_shopping_widget">Shopping widget</string>
+    <string name="quick_reminder_widget">Reminders widget</string>
+    <string name="quick_med_widget">Medication widget</string>
+    <string name="quick_shopping_tile">“Purchase” tile</string>
+    <string name="quick_reminder_tile">“Reminder” tile</string>
+    <string name="quick_add">Add</string>
+    <string name="quick_placed">Already placed</string>
 </resources>

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessItem
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.core.settings.AppLanguage
@@ -27,12 +29,14 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val checks: List<DiagnosticCheck> = emptyList(),
+    val quickAccess: List<QuickAccessItem> = emptyList(),
     /** Проставляется после запуска теста, чтобы показать подсказку. */
     val testScheduled: Boolean = false,
 )
 
 class SettingsViewModel(
     private val inspector: DiagnosticsInspector,
+    private val quickAccessInspector: QuickAccessInspector,
     private val testAlarmScheduler: TestAlarmScheduler,
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
@@ -89,7 +93,13 @@ class SettingsViewModel(
      * и список должен показывать новое состояние, а не старое.
      */
     fun refresh() {
-        _uiState.value = _uiState.value.copy(checks = inspector.inspect())
+        _uiState.value = _uiState.value.copy(
+            checks = inspector.inspect(),
+            // Перечитывается вместе с проверками, на каждом возврате на
+            // экран: человек уходит ставить виджет и возвращается, и строка
+            // обязана уже знать, что он на месте.
+            quickAccess = quickAccessInspector.inspect(),
+        )
     }
 
     fun onTestNotification() {
@@ -149,6 +159,7 @@ class SettingsViewModel(
                 val container = app.container
                 SettingsViewModel(
                     inspector = container.diagnosticsInspector,
+                    quickAccessInspector = container.quickAccessInspector,
                     testAlarmScheduler = container.testAlarmScheduler,
                     syncer = container.remindersSyncer,
                     syncTrigger = container.syncTrigger,

@@ -138,4 +138,13 @@
     <string name="reminder_edit_title">Правка напоминания</string>
     <string name="reminder_edit_name">О чём напомнить</string>
     <string name="reminder_edit_repeat_note">Правило повтора не меняется — переносится только ближайшее срабатывание.</string>
+    <string name="quick_access_title">Быстрый доступ</string>
+    <string name="quick_access_note">Виджет и плитка — самый короткий путь к диктовке. Система спросит, куда их положить.</string>
+    <string name="quick_shopping_widget">Виджет покупок</string>
+    <string name="quick_reminder_widget">Виджет напоминаний</string>
+    <string name="quick_med_widget">Виджет таблеток</string>
+    <string name="quick_shopping_tile">Плитка «Покупка»</string>
+    <string name="quick_reminder_tile">Плитка «Напоминание»</string>
+    <string name="quick_add">Добавить</string>
+    <string name="quick_placed">Уже на экране</string>
 </resources>
