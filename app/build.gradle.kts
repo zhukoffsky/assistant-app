@@ -35,7 +35,22 @@ plugins {
 
 android {
     namespace = "com.zhukoffsky.magpie"
-    compileSdk = 35
+    /*
+     * Собираем против 36, а целимся по-прежнему в 35.
+     *
+     * `compileSdk` подняли не по желанию: свежие androidx отказываются
+     * подключаться к более старому — сборка падает на `checkAarMetadata`
+     * с прямым указанием, против чего компилироваться.
+     *
+     * `targetSdk` — другое дело: он меняет поведение системы во время
+     * работы, а не набор доступных API. У приложения свой визуальный язык,
+     * плавающая навигация и прозрачная активность диктовки, то есть ровно
+     * то, по чему бьют изменения edge-to-edge в Android 16. Поднимать его
+     * стоит отдельным заходом и с прогоном на устройстве, а не заодно с
+     * обновлением библиотек. Приложение не публикуется в Play, поэтому
+     * никакого срока по нему нет.
+     */
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.zhukoffsky.magpie"
@@ -113,6 +128,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // Вне BOM: иконки из него исчезли, см. причину в libs.versions.toml.
+    implementation(libs.androidx.compose.material.icons)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.navigation.compose)
