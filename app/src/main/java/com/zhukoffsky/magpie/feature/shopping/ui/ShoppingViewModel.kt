@@ -7,11 +7,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
+import com.zhukoffsky.magpie.core.settings.ShoppingPreferences
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -21,17 +22,46 @@ data class ShoppingUiState(
     val input: String = "",
     val items: List<ShoppingItem> = emptyList(),
     val isLoading: Boolean = true,
+    /** Показывать список отделами. Выключено — плоский список, как было. */
+    val groupByCategory: Boolean = false,
 ) {
     val checkedCount: Int get() = items.count { it.isChecked }
+
+    /**
+     * Список, разложенный по отделам в порядке обхода магазина.
+     *
+     * Порядок внутри отдела — тот же, что и в плоском списке: сначала
+     * некупленное, потом отмеченное. Пустые отделы не показываются, «Прочее»
+     * оказывается последним само — по порядку объявления в перечислении.
+     */
+    val groups: List<Pair<ShoppingCategory, List<ShoppingItem>>>
+        get() = ShoppingCategory.entries
+            .mapNotNull { category ->
+                items.filter { it.category == category }
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { category to it }
+            }
 }
 
-class ShoppingViewModel(private val repository: ShoppingRepository) : ViewModel() {
+class ShoppingViewModel(
+    private val repository: ShoppingRepository,
+    preferences: ShoppingPreferences,
+) : ViewModel() {
 
     private val input = MutableStateFlow("")
 
     val uiState: StateFlow<ShoppingUiState> =
-        combine(input, repository.observeItems()) { text, items ->
-            ShoppingUiState(input = text, items = items, isLoading = false)
+        combine(
+            input,
+            repository.observeItems(),
+            preferences.groupByCategory,
+        ) { text, items, grouped ->
+            ShoppingUiState(
+                input = text,
+                items = items,
+                isLoading = false,
+                groupByCategory = grouped,
+            )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -55,28 +85,16 @@ class ShoppingViewModel(private val repository: ShoppingRepository) : ViewModel(
     }
 
     /**
-     * Смахнуть позицию легко случайно, поэтому удаление всегда предлагает
-     * отмену. Запись при этом удаляется сразу — «отложенное» удаление
-     * рассыпается, если приложение закроют до истечения таймера.
+     * Удаление окончательное, без предложения отменить.
+     *
+     * Отмена здесь была и убрана по просьбе владельца: плашка выскакивала на
+     * каждое смахивание, перекрывала список и требовала реакции там, где
+     * человек уже принял решение. Смахнуть нужно намеренно, а вернуть
+     * случайно удалённое проще, продиктовав заново, чем читать баннер после
+     * каждой покупки.
      */
-    private val _undoDelete = MutableStateFlow<ShoppingItem?>(null)
-    val undoDelete: StateFlow<ShoppingItem?> = _undoDelete.asStateFlow()
-
     fun onDelete(item: ShoppingItem) {
-        viewModelScope.launch {
-            repository.delete(item.id)
-            _undoDelete.value = item
-        }
-    }
-
-    fun onUndoDelete() {
-        val item = _undoDelete.value ?: return
-        _undoDelete.value = null
-        viewModelScope.launch { repository.add(item.title) }
-    }
-
-    fun onUndoDismissed() {
-        _undoDelete.value = null
+        viewModelScope.launch { repository.delete(item.id) }
     }
 
     fun onClearChecked() {
@@ -89,7 +107,10 @@ class ShoppingViewModel(private val repository: ShoppingRepository) : ViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp
-                ShoppingViewModel(app.container.shoppingRepository)
+                ShoppingViewModel(
+                    repository = app.container.shoppingRepository,
+                    preferences = ShoppingPreferences(app),
+                )
             }
         }
     }

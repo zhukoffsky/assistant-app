@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,9 +41,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.DatePickerDialog
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
-import com.zhukoffsky.magpie.core.ui.UndoDeleteEffect
 import com.zhukoffsky.magpie.core.ui.appLocale
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
@@ -62,12 +61,6 @@ fun RemindersScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Reminder?>(null) }
-
-    UndoDeleteEffect(
-        deleted = viewModel.undoDelete.collectAsStateWithLifecycle().value,
-        onUndo = viewModel::onUndoDelete,
-        onDismiss = viewModel::onUndoDismissed,
-    )
 
     editing?.let { reminder ->
         EditReminderDialog(
@@ -248,7 +241,7 @@ private fun EditReminderDialog(
         )
     }
 
-    AlertDialog(
+    MagpieAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.reminder_edit_title)) },
         text = {

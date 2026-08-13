@@ -13,35 +13,39 @@ import org.junit.Test
  */
 class HybridShoppingParserTest {
 
-    private class FakeLlm(private val result: List<String>) : ShoppingItemsParser {
+    private class FakeLlm(vararg titles: String) : ShoppingItemsParser {
+        private val result = titles.map { ParsedShoppingItem(it) }
         var called = false
             private set
 
-        override suspend fun parse(phrase: String): List<String> {
+        override suspend fun parse(phrase: String): List<ParsedShoppingItem> {
             called = true
             return result
         }
     }
 
+    /** Сравниваем названия: категории у правил нет по определению. */
+    private fun List<ParsedShoppingItem>.titles() = map { it.title }
+
     private fun parser(llm: FakeLlm) = HybridShoppingParser(RuleBasedShoppingParser(), llm)
 
     @Test
     fun `phrase with separators is handled by rules alone`() = runTest {
-        val llm = FakeLlm(listOf("не должно понадобиться"))
+        val llm = FakeLlm("не должно понадобиться")
 
         val items = parser(llm).parse("молоко, хлеб и яйца")
 
-        assertEquals(listOf("молоко", "хлеб", "яйца"), items)
+        assertEquals(listOf("молоко", "хлеб", "яйца"), items.titles())
         assertFalse("правила справились — в сеть ходить незачем", llm.called)
     }
 
     @Test
     fun `single word does not go to the network`() = runTest {
-        val llm = FakeLlm(listOf("не должно понадобиться"))
+        val llm = FakeLlm("не должно понадобиться")
 
         val items = parser(llm).parse("молоко")
 
-        assertEquals(listOf("молоко"), items)
+        assertEquals(listOf("молоко"), items.titles())
         assertFalse(llm.called)
     }
 
@@ -52,46 +56,46 @@ class HybridShoppingParserTest {
      */
     @Test
     fun `conjunction alone is not a reliable boundary`() = runTest {
-        val llm = FakeLlm(listOf("молоко", "мясо", "колбаса", "сыр", "салфетки"))
+        val llm = FakeLlm("молоко", "мясо", "колбаса", "сыр", "салфетки")
 
         val items = parser(llm).parse("надо молоко мясо колбаса сыр и салфетки")
 
-        assertEquals(listOf("молоко", "мясо", "колбаса", "сыр", "салфетки"), items)
+        assertEquals(listOf("молоко", "мясо", "колбаса", "сыр", "салфетки"), items.titles())
         assertTrue("знаков препинания нет — границы известны только модели", llm.called)
     }
 
     @Test
     fun `phrase without separators is split by the model`() = runTest {
-        val llm = FakeLlm(listOf("молоко", "хлеб", "яйца"))
+        val llm = FakeLlm("молоко", "хлеб", "яйца")
 
         val items = parser(llm).parse("молоко хлеб яйца")
 
-        assertEquals(listOf("молоко", "хлеб", "яйца"), items)
+        assertEquals(listOf("молоко", "хлеб", "яйца"), items.titles())
         assertTrue("разделителей нет — это случай для модели", llm.called)
     }
 
     /** Название из нескольких слов модель имеет право оставить одним. */
     @Test
     fun `model may keep a multi word name whole`() = runTest {
-        val llm = FakeLlm(listOf("хлеб бородинский"))
+        val llm = FakeLlm("хлеб бородинский")
 
-        assertEquals(listOf("хлеб бородинский"), parser(llm).parse("хлеб бородинский"))
+        assertEquals(listOf("хлеб бородинский"), parser(llm).parse("хлеб бородинский").titles())
     }
 
     @Test
     fun `phrase survives when the model is unavailable`() = runTest {
-        val llm = FakeLlm(emptyList())
+        val llm = FakeLlm()
 
         val items = parser(llm).parse("молоко хлеб яйца")
 
-        assertEquals("фраза не теряется никогда", listOf("молоко хлеб яйца"), items)
+        assertEquals("фраза не теряется никогда", listOf("молоко хлеб яйца"), items.titles())
         assertTrue(llm.called)
     }
 
     @Test
     fun `blank answers from the model are ignored`() = runTest {
-        val llm = FakeLlm(listOf("  ", ""))
+        val llm = FakeLlm("  ", "")
 
-        assertEquals(listOf("молоко хлеб"), parser(llm).parse("молоко хлеб"))
+        assertEquals(listOf("молоко хлеб"), parser(llm).parse("молоко хлеб").titles())
     }
 }

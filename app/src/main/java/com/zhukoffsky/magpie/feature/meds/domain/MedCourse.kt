@@ -35,3 +35,14 @@ data class DoseDay(
     val status: IntakeStatus,
     val takenAt: Instant?,
 )
+
+/**
+ * Сегодняшний приём: что показывает виджет и карточка на экране.
+ *
+ * Доза здесь уже вычислена из даты — виджету считать нечего.
+ */
+data class TodayDose(
+    val course: MedCourse,
+    val doseMg: Int,
+    val status: IntakeStatus,
+)

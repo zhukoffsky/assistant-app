@@ -44,6 +44,20 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE isDone = 0 AND dueAt IS NOT NULL")
     suspend fun pendingScheduled(): List<ReminderEntity>
 
+    /**
+     * Ближайшее по времени невыполненное — то, что показывает виджет.
+     *
+     * Просроченные не отсеиваются намеренно: если срок прошёл, а «Готово» не
+     * нажали, это ровно то напоминание, которое человеку и нужно увидеть.
+     * Отбор по `dueAt >= сейчас` вдобавок требовал бы знать «сейчас», а
+     * виджет живёт кадрами и сам по времени не обновляется.
+     */
+    @Query(
+        "SELECT * FROM reminders WHERE isDone = 0 AND dueAt IS NOT NULL " +
+            "ORDER BY dueAt ASC, id ASC LIMIT 1",
+    )
+    fun observeNext(): Flow<ReminderEntity?>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(reminder: ReminderEntity): Long
 

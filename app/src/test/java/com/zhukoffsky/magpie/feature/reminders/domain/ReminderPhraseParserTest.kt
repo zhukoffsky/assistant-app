@@ -104,4 +104,36 @@ class ReminderPhraseParserTest {
     fun `title never ends up empty`() {
         assertEquals("завтра в 9", parse("завтра в 9").title)
     }
+
+    /**
+     * Регрессия 12 августа 2026: распознаватель поставил после «напомни»
+     * неразрывный пробел, `\s` его не считает пробелом, и вводный глагол
+     * остался в заголовке — «напомни съездить на рынок». На глаз от обычного
+     * пробела неотличимо, поэтому случай и записан тестом.
+     */
+    @Test
+    fun `a non-breaking space after the verb does not keep it in the title`() {
+        val parsed = ReminderPhraseParser.parse(
+            "напомни\u00A0съездить на рынок завтра в 15:00",
+            now,
+        )
+
+        assertEquals("съездить на рынок", parsed.title)
+    }
+
+    @Test
+    fun `a comma after the verb does not keep it in the title`() {
+        assertEquals(
+            "съездить на рынок",
+            ReminderPhraseParser.parse("напомни, съездить на рынок завтра в 15:00", now).title,
+        )
+    }
+
+    @Test
+    fun `the noun form of the request is dropped too`() {
+        assertEquals(
+            "съездить на рынок",
+            ReminderPhraseParser.parse("напоминание съездить на рынок завтра в 15:00", now).title,
+        )
+    }
 }

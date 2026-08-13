@@ -2,6 +2,8 @@ package com.zhukoffsky.magpie.feature.shopping.data
 
 import com.zhukoffsky.magpie.core.data.db.ShoppingDao
 import com.zhukoffsky.magpie.core.data.db.ShoppingItemEntity
+import com.zhukoffsky.magpie.feature.shopping.domain.ParsedShoppingItem
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -60,23 +62,27 @@ class ShoppingRepository(
      * позициях это пять IPC-вызовов подряд. Запись становится настолько
      * медленной, что успевает не вся, если вызывающий к тому моменту
      * закрылся. Здесь виджет трогается один раз в конце.
+     *
+     * @return идентификаторы записанного — по ним отменяют диктовку.
      */
-    suspend fun addAll(rawTitles: List<String>) {
-        var added = false
-        rawTitles.forEach { raw ->
-            val title = raw.trim()
-            if (title.isEmpty()) return@forEach
-
-            dao.insert(
-                ShoppingItemEntity(
-                    title = title,
-                    position = dao.maxPosition() + 1,
-                    createdAt = clock.instant(),
-                ),
-            )
-            added = true
+    suspend fun addAll(items: List<ParsedShoppingItem>): List<Long> {
+        val ids = items.mapNotNull { item ->
+            val title = item.title.trim()
+            if (title.isEmpty()) {
+                null
+            } else {
+                dao.insert(
+                    ShoppingItemEntity(
+                        title = title,
+                        position = dao.maxPosition() + 1,
+                        createdAt = clock.instant(),
+                        category = item.category?.name,
+                    ),
+                )
+            }
         }
-        if (added) onChanged()
+        if (ids.isNotEmpty()) onChanged()
+        return ids
     }
 
     suspend fun setChecked(id: Long, isChecked: Boolean) {
@@ -93,6 +99,14 @@ class ShoppingRepository(
         onChanged()
     }
 
+    /** Откат одной диктовки: виджет трогается один раз, как и при записи. */
+    suspend fun deleteAll(ids: List<Long>) {
+        if (ids.isEmpty()) return
+
+        ids.forEach { dao.deleteById(it) }
+        onChanged()
+    }
+
     suspend fun deleteChecked() {
         dao.deleteChecked()
         onChanged()
@@ -103,4 +117,5 @@ private fun ShoppingItemEntity.toDomain() = ShoppingItem(
     id = id,
     title = title,
     isChecked = isChecked,
+    category = ShoppingCategory.fromName(category),
 )

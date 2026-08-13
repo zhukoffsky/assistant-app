@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.zhukoffsky.magpie.MainActivity
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.settings.forSelectedLanguage
 import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.feature.meds.alarm.MedActionReceiver
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
@@ -35,7 +36,14 @@ object MagpieNotifications {
      */
     private const val REMINDER_ID_OFFSET = 1_000
 
-    /** Каналы создаются при старте процесса: повторный вызов ничего не портит. */
+    /**
+     * Каналы создаются при старте процесса: повторный вызов ничего не портит.
+     *
+     * Имена каналов человек видит в системных настройках, поэтому [context]
+     * ожидается уже с нужной локалью — см. [MagpieApp]. Повторный вызов их
+     * переименовывает: `createNotificationChannel` у существующего канала
+     * обновляет имя (важность — нет, её система бережёт от приложения).
+     */
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -60,38 +68,43 @@ object MagpieNotifications {
      *
      * Идентификатор один на всё приложение: активный приём всегда один,
      * и старое уведомление должно замещаться, а не копиться.
+     *
+     * Приостановка — из-за языка: он лежит в DataStore, а читать его здесь, а
+     * не в получателе, надёжнее. Получателей два, и второй легко забыть.
      */
     // Разрешение проверяет `canPost` строкой ниже, но lint не прослеживает
     // проверку через вызов функции и считает `notify` незащищённым.
     @SuppressLint("MissingPermission")
-    fun showDose(context: Context, course: MedCourse, intake: MedIntake) {
+    suspend fun showDose(context: Context, course: MedCourse, intake: MedIntake) {
         if (!canPost(context)) {
             MagpieLog.w("notify: dose suppressed, no POST_NOTIFICATIONS")
             return
         }
         MagpieLog.i("notify: dose=${intake.doseMg}mg")
 
+        val strings = context.forSelectedLanguage()
+
         val notification = NotificationCompat.Builder(context, CHANNEL_MEDS)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.med_notification_title, course.name))
-            .setContentText(context.getString(R.string.med_notification_dose, intake.doseMg))
+            .setContentTitle(strings.getString(R.string.med_notification_title, course.name))
+            .setContentText(strings.getString(R.string.med_notification_dose, intake.doseMg))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context))
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.med_action_taken),
+                strings.getString(R.string.med_action_taken),
                 MedActionReceiver.takenIntent(context, intake.scheduledAt),
             )
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.med_action_snooze_15),
+                strings.getString(R.string.med_action_snooze_15),
                 MedActionReceiver.snoozeIntent(context, intake.scheduledAt, minutes = 15),
             )
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.med_action_snooze_60),
+                strings.getString(R.string.med_action_snooze_60),
                 MedActionReceiver.snoozeIntent(context, intake.scheduledAt, minutes = 60),
             )
             .build()
@@ -106,12 +119,16 @@ object MagpieNotifications {
     // Разрешение проверяет `canPost` строкой ниже, но lint не прослеживает
     // проверку через вызов функции и считает `notify` незащищённым.
     @SuppressLint("MissingPermission")
-    fun showReminder(context: Context, reminder: Reminder) {
+    suspend fun showReminder(context: Context, reminder: Reminder) {
         if (!canPost(context)) {
             MagpieLog.w("notify: reminder=${reminder.id} suppressed, no POST_NOTIFICATIONS")
             return
         }
         MagpieLog.i("notify: reminder=${reminder.id}")
+
+        // Заголовок — слова самого пользователя, переводить нечего; на
+        // выбранном языке нужна только подпись кнопки.
+        val strings = context.forSelectedLanguage()
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)
@@ -122,8 +139,20 @@ object MagpieNotifications {
             .setContentIntent(openAppIntent(context))
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.reminder_action_done),
+                strings.getString(R.string.reminder_action_done),
                 ReminderActionReceiver.donePendingIntent(context, reminder.id),
+            )
+            // Больше трёх кнопок Android всё равно не покажет, поэтому
+            // отсрочек ровно две.
+            .addAction(
+                R.drawable.ic_notification,
+                strings.getString(R.string.reminder_action_snooze_10),
+                ReminderActionReceiver.snoozePendingIntent(context, reminder.id, minutes = 10),
+            )
+            .addAction(
+                R.drawable.ic_notification,
+                strings.getString(R.string.reminder_action_snooze_60),
+                ReminderActionReceiver.snoozePendingIntent(context, reminder.id, minutes = 60),
             )
             .build()
 

@@ -18,5 +18,5 @@
     <string name="appearance_language_en">English</string>
 
     
-    <string name="appearance_language_note">Applies to app screens. Notifications follow the system language — change it in Android settings, App language.</string>
+    <string name="appearance_language_note">Applies to app screens and notifications. The label under the icon follows the system language — change it in Android settings, App language.</string>
 </resources>

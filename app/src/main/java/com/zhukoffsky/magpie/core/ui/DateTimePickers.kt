@@ -1,7 +1,6 @@
 package com.zhukoffsky.magpie.core.ui
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +37,7 @@ fun TimePickerDialog(
         is24Hour = true,
     )
 
-    AlertDialog(
+    MagpieAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) {
@@ -65,26 +64,34 @@ fun DatePickerDialog(
         initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
     )
 
+    // Диалог даты у Material свой, поэтому слоты оборачиваются вручную —
+    // почему это вообще нужно, написано у [DialogLanguage].
+    val language = rememberDialogLanguage()
+
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                onClick = {
-                    // Пикер отдаёт полночь UTC — обратно переводим так же,
-                    // иначе в отрицательных смещениях дата уезжает на день.
-                    val picked = state.selectedDateMillis
-                        ?.let { java.time.Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-                        ?: initial
-                    onConfirm(picked)
-                },
-            ) {
-                Text(stringResource(R.string.picker_ok))
+            language.Provide {
+                TextButton(
+                    onClick = {
+                        // Пикер отдаёт полночь UTC — обратно переводим так же,
+                        // иначе в отрицательных смещениях дата уезжает на день.
+                        val picked = state.selectedDateMillis
+                            ?.let { java.time.Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+                            ?: initial
+                        onConfirm(picked)
+                    },
+                ) {
+                    Text(stringResource(R.string.picker_ok))
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.picker_cancel)) }
+            language.Provide {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.picker_cancel)) }
+            }
         },
     ) {
-        DatePicker(state = state)
+        language.Provide { DatePicker(state = state) }
     }
 }

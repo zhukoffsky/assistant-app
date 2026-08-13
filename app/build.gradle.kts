@@ -7,10 +7,22 @@ import java.util.Properties
  * настройки. В сам код ключ по-прежнему не попадает: пустая строка здесь —
  * штатный случай (CI, чужая машина), тогда работает поле в настройках.
  */
-val llmApiKey: String = Properties().apply {
+val localProperties: Properties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
-}.getProperty("zaiApiKey").orEmpty()
+}
+
+val llmApiKey: String = localProperties.getProperty("zaiApiKey").orEmpty()
+
+/**
+ * Cloudflare Workers AI — расшифровка записанного звука.
+ *
+ * Их учётная запись определяется парой: идентификатор в адресе и токен в
+ * заголовке. Оба пусты — штатный случай: диктовка тогда недоступна и
+ * говорит об этом прямо, а ввод с клавиатуры работает как работал.
+ */
+val speechAccountId: String = localProperties.getProperty("cloudflareAccountId").orEmpty()
+val speechApiToken: String = localProperties.getProperty("cloudflareApiToken").orEmpty()
 
 plugins {
     alias(libs.plugins.android.application)
@@ -33,6 +45,8 @@ android {
         versionName = "0.1.0"
 
         buildConfigField("String", "LLM_API_KEY", "\"$llmApiKey\"")
+        buildConfigField("String", "SPEECH_ACCOUNT_ID", "\"$speechAccountId\"")
+        buildConfigField("String", "SPEECH_API_TOKEN", "\"$speechApiToken\"")
     }
 
     buildTypes {

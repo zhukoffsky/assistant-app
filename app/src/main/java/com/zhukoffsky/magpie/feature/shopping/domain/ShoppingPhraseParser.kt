@@ -1,5 +1,8 @@
 package com.zhukoffsky.magpie.feature.shopping.domain
 
+import com.zhukoffsky.magpie.core.util.SPACE
+import com.zhukoffsky.magpie.core.util.normalizeSpaces
+
 /**
  * Разбор надиктованной фразы в список покупок.
  *
@@ -14,7 +17,8 @@ package com.zhukoffsky.magpie.feature.shopping.domain
 object ShoppingPhraseParser {
 
     /** Запятые, точки с запятой, переводы строк и союзы между позициями. */
-    private val separators = Regex("""[,;\n]+|\s+(?:и|да|and)\s+""", RegexOption.IGNORE_CASE)
+    private val separators =
+        Regex("""[,;\n]+|$SPACE+(?:и|да|and)$SPACE+""", RegexOption.IGNORE_CASE)
 
     /**
      * Мусор в начале позиции: вводный глагол, союз, слово-заминка.
@@ -31,14 +35,18 @@ object ShoppingPhraseParser {
         // символом в Java по умолчанию кириллица не считается, поэтому
         // границы слова после «купить» просто нет. Отсюда взгляд вперёд на
         // пробел: слово-мусор обязано быть не последним.
-        "(?iu)^(?:\\s*(?:надо|нужно|нужны|нужен|нужна|и|а|да|ещё|еще|также|потом|" +
-            "наверное|наверно|пожалуй|там|ну|and|also|then)(?=\\s))*" +
-            "\\s*(?:(?:купить|купи|добавить|добавь|взять|возьми|buy|add|get)(?=\\s))?\\s*",
+        "(?iu)^(?:$SPACE*(?:надо|нужно|нужны|нужен|нужна|и|а|да|ещё|еще|также|потом|" +
+            "наверное|наверно|пожалуй|там|ну|and|also|then)(?=$SPACE))*" +
+            "$SPACE*(?:(?:купить|купи|добавить|добавь|взять|возьми|buy|add|get)(?=$SPACE))?$SPACE*",
     )
 
     /** Убирает мусор в начале и знаки в конце. Пустое — значит позиции нет. */
     fun clean(item: String): String =
-        item.replaceFirst(leadingFiller, "").trim().trimEnd('.', '!', '?', ',').trim()
+        item.normalizeSpaces()
+            .replaceFirst(leadingFiller, "")
+            .trim()
+            .trimEnd('.', '!', '?', ',')
+            .trim()
 
     fun parse(phrase: String): List<String> =
         phrase.split(separators)

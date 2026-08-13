@@ -95,6 +95,43 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun `snoozing sets a separate alarm and leaves the schedule alone`() = runTest {
+        val dueAt = now.minus(Duration.ofMinutes(1))
+        val id = repository.add("вынести мусор", dueAt, RepeatRule.Daily)!!
+        scheduler.scheduled.clear()
+
+        repository.snooze(id, Duration.ofMinutes(10))
+
+        // Отложили — значит, срабатывание через десять минут и ни одного
+        // изменения в самой записи: серия повтора остаётся на месте.
+        assertEquals(mapOf(id to now.plus(Duration.ofMinutes(10))), scheduler.snoozed)
+        assertTrue(scheduler.scheduled.isEmpty())
+        assertEquals(dueAt, dao.items.value.single().dueAt)
+    }
+
+    @Test
+    fun `a done reminder is not snoozed`() = runTest {
+        val id = repository.add("позвонить", now, repeat = null)!!
+        repository.setDone(id, true)
+
+        repository.snooze(id, Duration.ofMinutes(10))
+
+        assertTrue(scheduler.snoozed.isEmpty())
+    }
+
+    @Test
+    fun `editing drops a pending snooze`() = runTest {
+        val id = repository.add("позвонить", now.plus(Duration.ofHours(2)), repeat = null)!!
+        repository.snooze(id, Duration.ofMinutes(10))
+
+        repository.update(id, "позвонить в поликлинику", now.plus(Duration.ofHours(5)))
+
+        // cancel снимает оба будильника, иначе отсрочка сработала бы по
+        // старому времени уже после правки.
+        assertEquals(setOf(id), scheduler.cancelled)
+    }
+
+    @Test
     fun `reboot reschedules future reminders and skips missed one-offs`() = runTest {
         val future = now.plus(Duration.ofHours(3))
         dao.insert(entity(title = "будущее", dueAt = future))
@@ -130,10 +167,15 @@ class ReminderRepositoryTest {
 
     private class RecordingScheduler : ReminderScheduler {
         val scheduled = mutableMapOf<Long, Instant>()
+        val snoozed = mutableMapOf<Long, Instant>()
         val cancelled = mutableSetOf<Long>()
 
         override fun schedule(id: Long, at: Instant) {
             scheduled[id] = at
+        }
+
+        override fun scheduleSnooze(id: Long, at: Instant) {
+            snoozed[id] = at
         }
 
         override fun cancel(id: Long) {

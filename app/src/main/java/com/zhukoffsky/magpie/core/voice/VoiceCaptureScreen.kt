@@ -1,5 +1,8 @@
 package com.zhukoffsky.magpie.core.voice
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,55 +15,135 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.GlassSurface
 import com.zhukoffsky.magpie.core.ui.blurBehindWindow
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
+import com.zhukoffsky.magpie.feature.reminders.ui.dueHeadline
 import com.zhukoffsky.magpie.feature.reminders.ui.dueLabel
 
 /**
- * Оверлей поверх прозрачной активности: пока идёт распознавание, на экране
- * системный диалог, и своего интерфейса быть не должно.
+ * Оверлей поверх прозрачной активности.
+ *
+ * У напоминания на экране системный диалог, и своего интерфейса быть не
+ * должно. У покупок пишем мы сами, и карточка нужна: без неё непонятно,
+ * идёт ли запись, и нечем её закончить.
  */
 @Composable
 fun VoiceCaptureScreen(
     state: VoiceCaptureUiState,
     target: VoiceTarget,
-    onItemChange: (Int, String) -> Unit,
-    onItemRemove: (Int) -> Unit,
-    onTitleChange: (String) -> Unit,
-    onConfirm: () -> Unit,
+    onUndo: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
+    onFinishRecording: () -> Unit,
 ) {
     when (state) {
         is VoiceCaptureUiState.Listening, VoiceCaptureUiState.Done -> Unit
+
+        is VoiceCaptureUiState.Recording -> BottomCard {
+            CardHeader(stringResource(R.string.voice_prompt_shopping))
+
+            Text(
+                text = stringResource(R.string.voice_recording_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MagpieTheme.colors.ink2,
+            )
+
+            /*
+             * Полоска уровня и секунды.
+             *
+             * Единственное доказательство, что микрофон открыт. Пока запись
+             * вёл чужой распознаватель, доказательства не было вовсе, и
+             * молча вставший микрофон выглядел точно так же, как рабочий, —
+             * человек говорил в пустоту и узнавал об этом по пропавшей
+             * половине списка.
+             */
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LinearProgressIndicator(
+                    progress = { state.level },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MagpieTheme.colors.glass,
+                    strokeCap = StrokeCap.Round,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {},
+                )
+                Text(
+                    text = "%d:%02d".format(state.seconds / 60, state.seconds % 60),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 18.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
+                Button(
+                    onClick = onFinishRecording,
+                    modifier = Modifier.padding(start = 8.dp),
+                    shape = RoundedCornerShape(MagpieRadius.sm),
+                ) {
+                    Text(stringResource(R.string.voice_done))
+                }
+            }
+        }
+
+        is VoiceCaptureUiState.Transcribing -> BottomCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.voice_transcribing),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+        }
 
         is VoiceCaptureUiState.Parsing -> BottomCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -84,69 +167,64 @@ fun VoiceCaptureScreen(
             }
         }
 
-        is VoiceCaptureUiState.ConfirmingItems -> BottomCard {
-            CardHeader(stringResource(R.string.voice_confirm_shopping_title))
+        is VoiceCaptureUiState.SavedItems -> BottomCard {
+            CardHeader(stringResource(R.string.voice_saved_shopping_title))
             Column(
                 // Ограничение по высоте, а не свободный рост: длинный список
-                // иначе выдавит кнопки за нижний край экрана.
+                // иначе выдавит кнопку за нижний край экрана.
                 modifier = Modifier
                     .heightIn(max = 320.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                state.items.forEachIndexed { index, item ->
-                    GlassSurface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(MagpieRadius.sm),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(start = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CardTextField(
-                                value = item,
-                                onValueChange = { onItemChange(index, it) },
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(onClick = { onItemRemove(index) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.voice_remove_item),
-                                    tint = MagpieTheme.colors.ink3,
-                                )
-                            }
-                        }
-                    }
+                state.titles.forEach { title ->
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MagpieTheme.colors.ink,
+                    )
                 }
             }
-            Buttons(onCancel = onCancel, onConfirm = onConfirm)
+            UndoRow(onUndo = onUndo)
         }
 
-        is VoiceCaptureUiState.ConfirmingReminder -> BottomCard {
-            CardHeader(stringResource(R.string.voice_confirm_reminder_title))
-            GlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(MagpieRadius.sm),
-            ) {
-                CardTextField(
-                    value = state.title,
-                    onValueChange = onTitleChange,
-                    modifier = Modifier.padding(horizontal = 14.dp),
+        is VoiceCaptureUiState.SavedReminder -> BottomCard {
+            CardHeader(stringResource(R.string.voice_saved_reminder_title))
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MagpieTheme.colors.ink,
+            )
+            /*
+             * Время — крупно и акцентом, в отличие от всего остального на
+             * карточке. Она закрывается сама, и время здесь единственное,
+             * что человек обязан успеть проверить: неверно понятый час
+             * обнаружится, только когда будильник не сработает.
+             */
+            Text(
+                text = dueHeadline(state.dueAt),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            state.repeat?.let {
+                Text(
+                    text = dueLabel(dueAt = null, repeat = it),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            Text(
-                text = dueLabel(state.dueAt, state.repeat),
-                style = MaterialTheme.typography.bodySmall,
-                color = MagpieTheme.colors.ink2,
-                modifier = Modifier.padding(top = 10.dp, start = 4.dp),
-            )
-            Buttons(onCancel = onCancel, onConfirm = onConfirm)
+            UndoRow(onUndo = onUndo)
         }
 
         is VoiceCaptureUiState.Failed -> BottomCard {
             val messageRes = when (state.reason) {
                 VoiceFailure.NO_RECOGNIZER -> R.string.voice_error_no_recognizer
                 VoiceFailure.NOTHING_RECOGNIZED -> R.string.voice_error_nothing_recognized
+                VoiceFailure.NO_PERMISSION -> R.string.voice_error_no_permission
+                VoiceFailure.NO_MICROPHONE -> R.string.voice_error_no_microphone
+                VoiceFailure.TRANSCRIPTION_FAILED -> R.string.voice_error_transcription
             }
             Text(
                 text = stringResource(messageRes),
@@ -161,7 +239,14 @@ fun VoiceCaptureScreen(
                 horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_close)) }
-                if (state.reason != VoiceFailure.NO_RECOGNIZER) {
+                // «Повторить» предлагается только там, где повтор что-то
+                // меняет. Нет распознавателя и отобранный микрофон чинятся
+                // не здесь, и кнопка там означала бы «попробуй ещё раз то
+                // же самое».
+                val worthRetrying = state.reason == VoiceFailure.NOTHING_RECOGNIZED ||
+                    state.reason == VoiceFailure.NO_MICROPHONE ||
+                    state.reason == VoiceFailure.TRANSCRIPTION_FAILED
+                if (worthRetrying) {
                     Button(
                         onClick = onRetry,
                         shape = RoundedCornerShape(MagpieRadius.sm),
@@ -271,39 +356,46 @@ private fun CardHeader(text: String) {
     }
 }
 
-/** Поле без своей рамки: её рисует стекло вокруг. */
+/**
+ * Полоса «сколько осталось» и «Отменить».
+ *
+ * Полоса нужна не для красоты: карточка закрывается сама, и без неё она
+ * исчезала бы без предупреждения — человек не понимает, было ли у него время
+ * что-то сделать. Она чисто визуальная, закрытие считает ViewModel, но обе
+ * длительности берутся из одной константы.
+ */
 @Composable
-private fun CardTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.padding(vertical = 14.dp),
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MagpieTheme.colors.ink),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+private fun UndoRow(onUndo: () -> Unit) {
+    var started by remember { mutableStateOf(false) }
+    val remaining by animateFloatAsState(
+        targetValue = if (started) 0f else 1f,
+        animationSpec = tween(
+            durationMillis = VoiceCaptureViewModel.AUTO_CLOSE_MILLIS.toInt(),
+            easing = LinearEasing,
+        ),
+        label = "autoClose",
     )
-}
+    LaunchedEffect(Unit) { started = true }
 
-@Composable
-private fun Buttons(onCancel: () -> Unit, onConfirm: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 18.dp),
-        horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(onClick = onCancel) { Text(stringResource(R.string.voice_cancel)) }
-        Button(
-            onClick = onConfirm,
+        LinearProgressIndicator(
+            progress = { remaining },
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MagpieTheme.colors.glass,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
+        )
+        TextButton(
+            onClick = onUndo,
             modifier = Modifier.padding(start = 8.dp),
-            shape = RoundedCornerShape(MagpieRadius.sm),
         ) {
-            Text(stringResource(R.string.voice_save))
+            Text(stringResource(R.string.voice_undo))
         }
     }
 }

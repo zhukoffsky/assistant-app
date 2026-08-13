@@ -12,6 +12,7 @@ import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.core.settings.AppLanguage
 import com.zhukoffsky.magpie.core.settings.AppearancePreferences
+import com.zhukoffsky.magpie.core.settings.ShoppingPreferences
 import com.zhukoffsky.magpie.core.settings.ThemeMode
 import com.zhukoffsky.magpie.core.sync.AuthorizationResult
 import com.zhukoffsky.magpie.core.sync.RemindersSyncer
@@ -36,6 +37,7 @@ class SettingsViewModel(
     private val syncer: RemindersSyncer,
     private val syncTrigger: SyncTrigger,
     private val appearance: AppearancePreferences,
+    private val shopping: ShoppingPreferences,
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode.stateIn(
@@ -52,6 +54,16 @@ class SettingsViewModel(
 
     fun onThemeModeSelected(mode: ThemeMode) {
         viewModelScope.launch { appearance.setThemeMode(mode) }
+    }
+
+    val groupByCategory: StateFlow<Boolean> = shopping.groupByCategory.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = false,
+    )
+
+    fun onGroupByCategoryChange(enabled: Boolean) {
+        viewModelScope.launch { shopping.setGroupByCategory(enabled) }
     }
 
     fun onLanguageSelected(language: AppLanguage) {
@@ -143,6 +155,7 @@ class SettingsViewModel(
                     // Мимо AppContainer: DataStore всё равно один на процесс,
                     // так что дублирования не возникает.
                     appearance = AppearancePreferences(app),
+                    shopping = ShoppingPreferences(app),
                 )
             }
         }

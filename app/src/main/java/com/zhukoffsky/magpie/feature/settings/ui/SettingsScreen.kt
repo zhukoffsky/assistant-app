@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,6 +70,7 @@ fun SettingsScreen(
     val consentRequest by viewModel.consentRequest.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
+    val groupByCategory by viewModel.groupByCategory.collectAsStateWithLifecycle()
 
     // Пользователь уходит в системные настройки и возвращается — состояние
     // надо перечитать, иначе экран будет показывать вчерашнюю правду.
@@ -108,6 +110,11 @@ fun SettingsScreen(
             language = language,
             onThemeModeSelected = viewModel::onThemeModeSelected,
             onLanguageSelected = viewModel::onLanguageSelected,
+        )
+
+        ShoppingCard(
+            groupByCategory = groupByCategory,
+            onGroupByCategoryChange = viewModel::onGroupByCategoryChange,
         )
 
         GoogleSyncCard(
@@ -265,6 +272,51 @@ private fun AppearanceCard(
  * Разделителей между секциями нет: у каждой своя рамка, и линия рядом с ней
  * читалась бы как вторая граница.
  */
+/**
+ * Список покупок: единственная настройка — группировка по отделам.
+ *
+ * Отдельная карточка, а не строка во «Внешнем виде»: это не оформление, а
+ * поведение списка.
+ */
+@Composable
+private fun ShoppingCard(
+    groupByCategory: Boolean,
+    onGroupByCategoryChange: (Boolean) -> Unit,
+) {
+    SettingsCard {
+        Text(
+            text = stringResource(R.string.shopping_settings_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MagpieTheme.colors.ink,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.shopping_group_by_category),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.shopping_group_by_category_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Switch(
+                checked = groupByCategory,
+                onCheckedChange = onGroupByCategoryChange,
+                modifier = Modifier.padding(start = 12.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     GlassSurface(
