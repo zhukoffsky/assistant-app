@@ -14,6 +14,7 @@ import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -47,7 +48,7 @@ class MagpieApp : Application() {
         scope.launch {
             AppearancePreferences(this@MagpieApp).language
                 .distinctUntilChanged()
-                .collect { language ->
+                .collectIndexed { index, language ->
                     MagpieLog.i("appearance: language=$language")
                     MagpieNotifications.ensureChannels(forLanguage(language))
 
@@ -59,10 +60,11 @@ class MagpieApp : Application() {
                     ReminderVoiceWidget().updateAll(this@MagpieApp)
                     MedWidget().updateAll(this@MagpieApp)
 
-                    // Заодно и превью в списке выбора: они тоже на языке
-                    // приложения, и первый проход этой подписки случается
-                    // при старте процесса — отдельного вызова не нужно.
-                    WidgetPreviews.update(this@MagpieApp)
+                    // Превью в списке выбора тоже на языке приложения.
+                    // Первый проход подписки — это старт процесса, дальше
+                    // только настоящая смена языка: у превью жёсткий лимит
+                    // частоты, и переписывать их «на всякий случай» нельзя.
+                    WidgetPreviews.update(this@MagpieApp, force = index > 0)
                 }
         }
     }

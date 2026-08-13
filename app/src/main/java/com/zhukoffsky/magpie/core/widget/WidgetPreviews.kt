@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
+import android.os.Process
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.ExperimentalGlanceApi
@@ -59,27 +60,34 @@ object WidgetPreviews {
      * списке остаётся прежняя заглушка — это не поломка, а просто старое
      * поведение.
      *
-     * Система ограничивает частоту таких обновлений, поэтому зовём редко:
-     * при старте процесса и при смене языка, а не на каждую правку списка.
-     * Превью — это «как выглядит виджет», а не «что в нём сейчас написано».
+     * **Система ограничивает частоту: около двух вызовов в час на всё
+     * приложение.** Превью у нас три, и первая версия звала их все при
+     * каждом старте процесса — то есть почти всегда упиралась в лимит и
+     * тихо не делала ничего. Поэтому: при старте ставим только те, которых
+     * у системы ещё нет, а все три перезаписываем лишь при смене языка
+     * ([force]), когда они действительно устарели.
+     *
+     * @param force переписать даже то, что уже стоит.
      */
-    suspend fun update(context: Context) {
+    suspend fun update(context: Context, force: Boolean) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
 
         val manager = AppWidgetManager.getInstance(context)
         entries.forEach { entry ->
+            val component = ComponentName(context, entry.receiver)
+            val existing = runCatching {
+                manager.getWidgetPreview(component, Process.myUserHandle(), CATEGORY)
+            }.getOrNull()
+            if (!force && existing != null) return@forEach
+
             runCatching { compose(context, entry) }
                 .onSuccess { views ->
-                    manager.setWidgetPreview(
-                        ComponentName(context, entry.receiver),
-                        AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
-                        views,
-                    )
-                    // Успех тоже пишем: увидеть превью можно только руками, в
-                    // списке виджетов, а по логу хотя бы понятно, дошло ли до
-                    // системы. Без этой строки молчание значит и «сработало»,
-                    // и «не сработало».
-                    MagpieLog.i("preview: set for ${entry.receiver.simpleName}")
+                    // Ответ системы обязателен к прочтению: `false` означает
+                    // «не приняла, лимит». Первая версия его выбрасывала и
+                    // писала в лог «поставлено» в обоих случаях — из-за чего
+                    // отчёт разошёлся с тем, что видно в списке виджетов.
+                    val accepted = manager.setWidgetPreview(component, CATEGORY, views)
+                    MagpieLog.i("preview: ${entry.receiver.simpleName} accepted=$accepted")
                 }
                 .onFailure {
                     // Не повод падать: превью — украшение списка выбора, а
@@ -88,6 +96,8 @@ object WidgetPreviews {
                 }
         }
     }
+
+    private const val CATEGORY = AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN
 
     @OptIn(ExperimentalGlanceApi::class)
     private suspend fun compose(context: Context, entry: Entry) =
