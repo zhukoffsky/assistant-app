@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Подложка превью: та же плоская заливка со скруглением 28dp, что рисует
+  Glance у самих виджетов. Стекла и градиента здесь нет и быть не может —
+  RemoteViews умеет только это.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="28dp" />
+    <solid android:color="@color/widget_preview_bg" />
+</shape>

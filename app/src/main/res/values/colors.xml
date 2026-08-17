@@ -6,6 +6,16 @@
 
   Синий `#1F3A5F` из заготовки Android Studio отсюда убран вместе со стоковым
   микрофоном: он не входил в палитру и на тёплом фоне выглядел чужим.
+
+  Превью виджетов — как раз такой случай. Это обычные layout-ресурсы, их
+  инфлейтит лаунчер, и до Kotlin-палитры оттуда не дотянуться. Значения
+  продублированы из `Color.kt` вручную: светлые здесь, тёмные в
+  `values-night/`. Тему превью выбирает система — ровно как у самих виджетов.
 -->
 <resources>
+    <color name="widget_preview_bg">#FFF7F2</color>
+    <color name="widget_preview_ink">#2A1D18</color>
+    <color name="widget_preview_ink2">#7A655C</color>
+    <color name="widget_preview_accent">#FF6B35</color>
+    <color name="widget_preview_on_accent">#FFFFFFFF</color>
 </resources>

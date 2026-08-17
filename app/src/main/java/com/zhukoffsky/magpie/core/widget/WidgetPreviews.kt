@@ -75,10 +75,24 @@ object WidgetPreviews {
         val manager = AppWidgetManager.getInstance(context)
         entries.forEach { entry ->
             val component = ComponentName(context, entry.receiver)
+            // Читать надо не только ответ `setWidgetPreview`, но и причину, по
+            // которой превью «нет». Пустой результат и брошенное исключение
+            // означают разное — «система не сохранила» против «нам не дают
+            // прочитать», — а `getOrNull()` их уравнивал. Из-за этого 17
+            // августа выглядело так, будто превью просто не сохраняются:
+            // приняты с `accepted=true`, а через шесть минут снова нет ни
+            // одного.
             val existing = runCatching {
                 manager.getWidgetPreview(component, Process.myUserHandle(), CATEGORY)
-            }.getOrNull()
-            if (!force && existing != null) return@forEach
+            }
+            existing
+                .onSuccess {
+                    MagpieLog.i("preview: ${entry.receiver.simpleName} existing=${it != null}")
+                }
+                .onFailure {
+                    MagpieLog.w("preview: ${entry.receiver.simpleName} read failed", it)
+                }
+            if (!force && existing.getOrNull() != null) return@forEach
 
             runCatching { compose(context, entry) }
                 .onSuccess { views ->
@@ -87,7 +101,23 @@ object WidgetPreviews {
                     // писала в лог «поставлено» в обоих случаях — из-за чего
                     // отчёт разошёлся с тем, что видно в списке виджетов.
                     val accepted = manager.setWidgetPreview(component, CATEGORY, views)
-                    MagpieLog.i("preview: ${entry.receiver.simpleName} accepted=$accepted")
+
+                    // `accepted` — это НЕ «сохранено». В javadoc сказано
+                    // ровно одно: «true if the call was successful, false if
+                    // it was rate-limited». Поэтому сразу читаем обратно, в
+                    // том же процессе: так «не сохранилось вовсе»
+                    // отделяется от «не пережило выход процесса», а без
+                    // этого различить их нечем.
+                    val readBack = runCatching {
+                        manager.getWidgetPreview(component, Process.myUserHandle(), CATEGORY)
+                    }.getOrNull()
+                    val stored = manager.installedProviders
+                        .firstOrNull { it.provider == component }
+                        ?.generatedPreviewCategories
+                    MagpieLog.i(
+                        "preview: ${entry.receiver.simpleName} accepted=$accepted " +
+                            "readBack=${readBack != null} categories=$stored",
+                    )
                 }
                 .onFailure {
                     // Не повод падать: превью — украшение списка выбора, а
