@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -55,6 +53,8 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessItem
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.sync.SyncSettings
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -63,6 +63,7 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     onOpenFix: (DiagnosticFix) -> Unit,
+    onQuickAccessAdd: (QuickAccessTarget) -> Unit,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -112,6 +113,10 @@ fun SettingsScreen(
             onLanguageSelected = viewModel::onLanguageSelected,
         )
 
+        if (state.quickAccess.isNotEmpty()) {
+            QuickAccessCard(items = state.quickAccess, onAdd = onQuickAccessAdd)
+        }
+
         ShoppingCard(
             groupByCategory = groupByCategory,
             onGroupByCategoryChange = viewModel::onGroupByCategoryChange,
@@ -150,41 +155,6 @@ fun SettingsScreen(
                 problems.forEach { check ->
                     CheckRow(check = check, onOpenFix = onOpenFix)
                 }
-            }
-        }
-
-        SettingsCard {
-            Text(
-                text = stringResource(R.string.diag_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MagpieTheme.colors.ink,
-            )
-            Text(
-                text = stringResource(
-                    if (problems.isEmpty()) R.string.diag_all_good else R.string.diag_test_hint,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MagpieTheme.colors.ink2,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-
-            Button(
-                onClick = viewModel::onTestNotification,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .height(52.dp),
-                shape = RoundedCornerShape(MagpieRadius.md),
-            ) {
-                Text(stringResource(R.string.diag_test_button))
-            }
-            if (state.testScheduled) {
-                Text(
-                    text = stringResource(R.string.diag_test_scheduled),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MagpieTheme.colors.ink2,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
         }
 
@@ -460,7 +430,9 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            imageVector = if (check.isOk) Icons.Default.CheckCircle else Icons.Default.Warning,
+            painter = painterResource(
+                if (check.isOk) R.drawable.ic_check_circle else R.drawable.ic_warning,
+            ),
             contentDescription = null,
             // Проблема — янтарь, а не красный: это не авария, а настройка,
             // которую можно поправить.
@@ -489,6 +461,64 @@ private fun CheckRow(check: DiagnosticCheck, onOpenFix: (DiagnosticFix) -> Unit)
         if (!check.isOk && fix != null) {
             TextButton(onClick = { onOpenFix(fix) }) {
                 Text(stringResource(R.string.diag_fix))
+            }
+        }
+    }
+}
+
+/**
+ * Быстрые точки входа — предложение, а не список настроек.
+ *
+ * Смысл приложения в том, чтобы от намерения до микрофона был один тап, но
+ * до виджета и плитки надо ещё добраться: открыть редактор лаунчера, найти
+ * «Сороку» среди чужих виджетов, перетащить. Здесь то же самое делает
+ * система по нашей просьбе.
+ *
+ * Уже поставленный виджет показывается строкой без кнопки: врать «добавь
+ * меня» тому, кто уже добавил, — худший вид навязчивости.
+ */
+@Composable
+private fun QuickAccessCard(
+    items: List<QuickAccessItem>,
+    onAdd: (QuickAccessTarget) -> Unit,
+) {
+    SettingsCard {
+        Text(
+            text = stringResource(R.string.quick_access_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MagpieTheme.colors.ink,
+        )
+        Text(
+            text = stringResource(R.string.quick_access_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MagpieTheme.colors.ink2,
+            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+        )
+
+        items.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(item.target.labelRes),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                if (item.isPlaced) {
+                    Text(
+                        text = stringResource(R.string.quick_placed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MagpieTheme.colors.ink2,
+                    )
+                } else {
+                    TextButton(onClick = { onAdd(item.target) }) {
+                        Text(stringResource(R.string.quick_add))
+                    }
+                }
             }
         }
     }

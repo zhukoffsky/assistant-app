@@ -72,7 +72,10 @@ class ReminderRepository(
 
         // Сначала снимаются оба будильника: у напоминания могла висеть
         // отсрочка, и после правки времени она сработала бы по старому.
+        // Вместе с будильником стирается и её срок — иначе перезагрузка
+        // вернула бы отсрочку, отменённую правкой.
         scheduler.cancel(id)
+        dao.setSnoozedUntil(id, null)
         if (dueAt != null) scheduler.schedule(id, dueAt)
 
         markForUpload(id)
@@ -80,20 +83,32 @@ class ReminderRepository(
     }
 
     /**
-     * Отложить: отдельный будильник, ничего в базе.
+     * Отложить: отдельный будильник **и** срок в базе.
      *
      * Времени напоминания отсрочка не трогает — иначе отложенное «каждый
-     * вторник» сдвинуло бы всю серию. Цена — отсрочка не переживает
-     * перезагрузку: она нигде не записана, а `rescheduleAll` знает только про
-     * `dueAt`. Для повтора это не потеря (следующее срабатывание на месте),
-     * для одноразового напоминание останется в списке просроченным.
+     * вторник» сдвинуло бы всю серию. А срок пишется отдельной колонкой
+     * (`snoozedUntil`), чтобы пережить перезагрузку: раньше отсрочка была
+     * только будильником, и выключенный телефон её терял.
      */
     suspend fun snooze(id: Long, delay: Duration) {
         val reminder = dao.byId(id)?.toDomain() ?: return
         if (reminder.isDone) return
 
-        scheduler.scheduleSnooze(id, clock.instant().plus(delay))
+        val at = clock.instant().plus(delay)
+        // Сначала в базу, потом будильник: перезагрузка между этими двумя
+        // строками потеряет будильник, но не сам факт отсрочки, и он
+        // вернётся при следующей загрузке. Обратный порядок терял бы всё.
+        dao.setSnoozedUntil(id, at)
+        scheduler.scheduleSnooze(id, at)
     }
+
+    /**
+     * Отложенный показ состоялся — срок больше не нужен.
+     *
+     * Без этого он остался бы в базе навсегда и всплыл бы после ближайшей
+     * перезагрузки: уведомление вернулось бы за прошлый срок.
+     */
+    suspend fun onSnoozeFired(id: Long) = dao.setSnoozedUntil(id, null)
 
     suspend fun setDone(id: Long, isDone: Boolean) {
         dao.setDone(id, isDone, clock.instant())
@@ -101,6 +116,8 @@ class ReminderRepository(
 
         if (isDone) {
             scheduler.cancel(id)
+            // Выполненное не должно вернуться отсрочкой после перезагрузки.
+            dao.setSnoozedUntil(id, null)
         } else {
             reminder.dueAt?.let { scheduler.schedule(id, it) }
         }
@@ -175,7 +192,26 @@ class ReminderRepository(
                 // будить пользователя задним числом смысла нет.
                 else -> Unit
             }
+
+            restoreSnooze(entity.id, entity.snoozedUntil, now)
         }
+    }
+
+    /**
+     * Вернуть отложенный будильник после перезагрузки.
+     *
+     * Отдельно от основного и **после** него: у повтора это два разных
+     * будильника, и отсрочка не имеет права сдвинуть серию — то же
+     * рассуждение, по которому они изначально различаются действием
+     * намерения, а не кодом запроса.
+     *
+     * Просроченную отсрочку не восстанавливаем, а стираем: телефон мог
+     * пролежать выключенным до утра, и уведомление «отложено на десять
+     * минут», пришедшее к завтраку, — это не напоминание, а недоумение.
+     */
+    private suspend fun restoreSnooze(id: Long, snoozedUntil: Instant?, now: Instant) {
+        val at = snoozedUntil ?: return
+        if (at.isAfter(now)) scheduler.scheduleSnooze(id, at) else dao.setSnoozedUntil(id, null)
     }
 }
 

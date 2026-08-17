@@ -1,9 +1,13 @@
 package com.zhukoffsky.magpie
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.app.StatusBarManager
+import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +18,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.ui.MagpieAppScaffold
 import com.zhukoffsky.magpie.core.ui.MagpieRoot
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
@@ -36,6 +42,7 @@ class MainActivity : ComponentActivity() {
                         startActivity(VoiceCaptureActivity.intent(this, target))
                     },
                     onOpenFix = ::openFix,
+                    onQuickAccessAdd = ::addQuickAccess,
                 )
             }
         }
@@ -58,6 +65,14 @@ class MainActivity : ComponentActivity() {
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
+    /**
+     * `BatteryLife` подавлен на всей функции, а не на ветке: аннотация на
+     * ветке `when` lint'ом не читается.
+     *
+     * Возражает он по политике Google Play, а приложение там не публикуется —
+     * то же рассуждение, что и с `USE_EXACT_ALARM`.
+     */
+    @SuppressLint("BatteryLife")
     private fun openFix(fix: DiagnosticFix) {
         when (fix) {
             DiagnosticFix.NOTIFICATION_PERMISSION -> {
@@ -105,6 +120,36 @@ class MainActivity : ComponentActivity() {
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri()),
             )
         }
+    }
+
+    /**
+     * Попросить систему положить виджет на экран или плитку в шторку.
+     *
+     * Именно попросить: показать диалог, выбрать место и решить, ставить ли
+     * вообще, — дело системы и лаунчера. Нам достаётся ровно одно: избавить
+     * человека от похода в редактор лаунчера, где надо знать, что искать.
+     *
+     * Делается из активности, а не из репозитория: `requestAddTileService`
+     * работает только у приложения на переднем плане.
+     */
+    private fun addQuickAccess(target: QuickAccessTarget) {
+        val component = QuickAccessInspector.component(this, target)
+
+        if (target.isWidget) {
+            // `null` вместо `successCallback`: подтверждение нам не нужно —
+            // строка сама перечитается при возврате на экран.
+            AppWidgetManager.getInstance(this).requestPinAppWidget(component, null, null)
+            return
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        getSystemService(StatusBarManager::class.java)?.requestAddTileService(
+            component,
+            getString(target.systemLabelRes),
+            Icon.createWithResource(this, R.drawable.ic_mic),
+            {},
+            {},
+        )
     }
 
     /**

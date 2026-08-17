@@ -19,12 +19,8 @@
     <string name="sync_error">Error: %1$s</string>
     <string name="sync_now">Sync now</string>
     <string name="sync_disconnect">Disconnect</string>
-
-    <string name="diag_title">Delivery check</string>
     <string name="diag_subtitle">The system applies these silently, and the reminder simply never arrives.</string>
     <string name="diag_problems_title">Blocking delivery</string>
-    <string name="diag_all_good">Nothing is blocking delivery. The button below sends a real notification down the same path a reminder takes - use it if you are unsure.</string>
-    <string name="diag_test_hint">You can check delivery right now: the notification travels the same path a real one does.</string>
     <string name="diag_fix">Fix</string>
     <string name="diag_notifications">Notifications allowed</string>
     <string name="diag_notifications_problem">Nothing will be shown at all — neither reminders nor doses.</string>
@@ -37,10 +33,6 @@
     <string name="diag_battery_problem">In deep sleep the system may hold alarms back until the phone is picked up.</string>
     <string name="diag_recognizer">Speech recognition available</string>
     <string name="diag_recognizer_problem">No app on this device can recognise speech, so voice input will not work.</string>
-    <string name="diag_test_button">Send a test notification in a minute</string>
-    <string name="diag_test_scheduled">Scheduled. Lock the screen and put the phone down — that is the honest test.</string>
-    <string name="diag_test_notification_title">Test notification</string>
-    <string name="diag_test_notification_text">Delivery works: reminders will arrive the same way.</string>
 
     <string name="med_setup_title">Medication course</string>
     <string name="med_name_hint">Medication name</string>
@@ -125,7 +117,6 @@
     <string name="widget_reminder_empty">Nothing scheduled</string>
     <string name="widget_meds_description">Dose for today: name, amount and time</string>
     <string name="widget_meds_empty">No course yet</string>
-    <string name="widget_meds_dose">%1$d %2$s</string>
 
     <string name="tile_reminder">Dictate a reminder</string>
     <string name="tile_shopping">Dictate a purchase</string>
@@ -134,12 +125,21 @@
     <string name="shortcut_reminder_long">Dictate a reminder</string>
     <string name="shortcut_shopping_short">Purchase</string>
     <string name="shortcut_shopping_long">Dictate a purchase</string>
-
-    <string name="undo_deleted">Deleted</string>
-    <string name="undo_action">Undo</string>
     <string name="picker_ok">Done</string>
     <string name="picker_cancel">Cancel</string>
     <string name="reminder_edit_title">Edit reminder</string>
     <string name="reminder_edit_name">What to remind about</string>
     <string name="reminder_edit_repeat_note">The repeat rule stays as it is; only this occurrence moves.</string>
+    <string name="quick_access_title">Quick access</string>
+    <string name="quick_access_note">A widget or a tile is the shortest way to dictate. The system will ask where to put it.</string>
+    <string name="quick_shopping_widget">Shopping widget</string>
+    <string name="quick_reminder_widget">Reminders widget</string>
+    <string name="quick_med_widget">Medication widget</string>
+    <string name="quick_shopping_tile">“Purchase” tile</string>
+    <string name="quick_reminder_tile">“Reminder” tile</string>
+    <string name="quick_add">Add</string>
+    <string name="quick_placed">Already placed</string>
+    <string name="widget_shopping_label">Shopping list</string>
+    <string name="widget_reminder_label">Next reminder</string>
+    <string name="widget_meds_label">Medication</string>
 </resources>

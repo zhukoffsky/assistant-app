@@ -25,6 +25,11 @@ val speechAccountId: String = localProperties.getProperty("cloudflareAccountId")
 val speechApiToken: String = localProperties.getProperty("cloudflareApiToken").orEmpty()
 
 plugins {
+    /*
+     * `kotlin.android` применяется по-прежнему, хотя AGP 9 умеет Kotlin сам.
+     * Причина — в `gradle.properties`: со встроенным Kotlin не работает KSP,
+     * а он нужен Room. Поэтому встроенный выключен, и плагин снова обязателен.
+     */
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -35,12 +40,27 @@ plugins {
 
 android {
     namespace = "com.zhukoffsky.magpie"
-    compileSdk = 35
+    /*
+     * `compileSdk` подняли не по желанию: свежие androidx отказываются
+     * подключаться к более старому — сборка падает на `checkAarMetadata`
+     * с прямым указанием, против чего компилироваться.
+     */
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.zhukoffsky.magpie"
         minSdk = 29
-        targetSdk = 35
+        /*
+         * Поднят с 35 сразу до 37 и проверен глазами на Pixel 8 (он же на
+         * Android 17), а не просто перечислен в файле.
+         *
+         * `targetSdk` меняет поведение системы во время работы, а не набор
+         * API, и бьёт он ровно по тому, на чём здесь всё держится:
+         * edge-to-edge, плавающая навигация, прозрачная активность
+         * диктовки. Смотреть надо было все четыре вкладки и карточку
+         * записи, что и сделано.
+         */
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
 
@@ -63,10 +83,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -99,6 +115,19 @@ android {
  */
 room {
     schemaDirectory("$projectDir/schemas")
+}
+
+/**
+ * Цель JVM для Kotlin.
+ *
+ * Раньше стояла в `android.kotlinOptions`, которого с AGP 9 нет: Kotlin
+ * встроен, и настраивается он своим блоком. Значение то же, что у Java
+ * выше, — расхождение этих двух ломает сборку без внятной причины.
+ */
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {

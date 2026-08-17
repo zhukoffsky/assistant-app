@@ -119,6 +119,60 @@ class ReminderRepositoryTest {
         assertTrue(scheduler.snoozed.isEmpty())
     }
 
+    /**
+     * Отсрочка обязана пережить перезагрузку.
+     *
+     * До появления `snoozedUntil` она была только будильником, а система
+     * при выключении забывает все будильники. Для повтора это значило
+     * «вернётся завтра», для одноразового — «не вернётся никогда».
+     */
+    @Test
+    fun `a pending snooze comes back after a reboot`() = runTest {
+        val id = repository.add("вынести мусор", now, RepeatRule.Daily)!!
+        repository.snooze(id, Duration.ofMinutes(10))
+        scheduler.snoozed.clear()
+        scheduler.scheduled.clear()
+
+        repository.rescheduleAll()
+
+        assertEquals(mapOf(id to now.plus(Duration.ofMinutes(10))), scheduler.snoozed)
+    }
+
+    /**
+     * Просроченную — стереть, а не показать.
+     *
+     * Телефон мог пролежать выключенным до утра, и «отложено на десять
+     * минут», пришедшее к завтраку, вызывает недоумение, а не действие.
+     */
+    @Test
+    fun `a snooze whose time passed is dropped, not fired`() = runTest {
+        val id = repository.add("вынести мусор", now, RepeatRule.Daily)!!
+        repository.snooze(id, Duration.ofMinutes(10))
+        scheduler.snoozed.clear()
+
+        // Телефон включили через час после срока отсрочки: та же база, но
+        // часы ушли вперёд.
+        val afterReboot = ReminderRepository(
+            dao,
+            scheduler,
+            Clock.fixed(now.plus(Duration.ofHours(1)), zone),
+        )
+        afterReboot.rescheduleAll()
+
+        assertTrue(scheduler.snoozed.isEmpty())
+        assertEquals(null, dao.items.value.single().snoozedUntil)
+    }
+
+    @Test
+    fun `a done reminder does not come back by a snooze`() = runTest {
+        val id = repository.add("позвонить", now, repeat = null)!!
+        repository.snooze(id, Duration.ofMinutes(10))
+
+        repository.setDone(id, true)
+
+        assertEquals(null, dao.items.value.single().snoozedUntil)
+    }
+
     @Test
     fun `editing drops a pending snooze`() = runTest {
         val id = repository.add("позвонить", now.plus(Duration.ofHours(2)), repeat = null)!!

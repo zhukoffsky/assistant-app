@@ -146,6 +146,53 @@ class MedRepositoryTest {
         assertEquals(at(day = 6), scheduler.daily)
     }
 
+    /**
+     * Отложенный приём обязан вернуться после перезагрузки.
+     *
+     * Цена потери здесь выше, чем у напоминания: отложил дозу, телефон
+     * перезагрузился — и о ней больше ничто не напомнит, а следующий
+     * будильник только завтра.
+     */
+    @Test
+    fun `a snoozed dose comes back after a reboot`() = runTest {
+        repository.onAlarm(scheduledAt = null)
+        repository.snooze(at(day = 5), Duration.ofMinutes(15))
+        scheduler.snooze = null
+
+        repository.rescheduleAll()
+
+        assertEquals(now.plus(Duration.ofMinutes(15)) to at(day = 5), scheduler.snooze)
+    }
+
+    @Test
+    fun `a snoozed dose whose time passed is dropped, not fired`() = runTest {
+        repository.onAlarm(scheduledAt = null)
+        repository.snooze(at(day = 5), Duration.ofMinutes(15))
+        scheduler.snooze = null
+
+        // Телефон включили через сутки: показывать вчерашнюю отсрочку поздно.
+        val afterReboot = MedRepository(
+            dao,
+            scheduler,
+            Clock.fixed(now.plus(Duration.ofDays(1)), zone),
+        )
+        afterReboot.rescheduleAll()
+
+        assertNull(scheduler.snooze)
+        assertNull(dao.intakes.value.single().snoozedUntil)
+    }
+
+    /** Приняли — отсрочке неоткуда взяться после перезагрузки. */
+    @Test
+    fun `taking the dose clears a pending snooze`() = runTest {
+        repository.onAlarm(scheduledAt = null)
+        repository.snooze(at(day = 5), Duration.ofMinutes(15))
+
+        repository.markTaken(at(day = 5))
+
+        assertNull(dao.intakes.value.single().snoozedUntil)
+    }
+
     @Test
     fun `history shows every day of the course, not only the recorded ones`() = runTest {
         val course = repository.activeCourse()!!

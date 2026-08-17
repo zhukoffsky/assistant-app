@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticFix
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.meds.ui.MedsScreen
 import com.zhukoffsky.magpie.feature.reminders.ui.RemindersScreen
@@ -52,6 +54,7 @@ import com.zhukoffsky.magpie.feature.shopping.ui.ShoppingScreen
 fun MagpieAppScaffold(
     onVoiceCapture: (VoiceTarget) -> Unit,
     onOpenFix: (DiagnosticFix) -> Unit,
+    onQuickAccessAdd: (QuickAccessTarget) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -94,7 +97,7 @@ fun MagpieAppScaffold(
                         MedsScreen()
                     }
                     composable(MagpieDestination.Settings.route) {
-                        SettingsScreen(onOpenFix = onOpenFix)
+                        SettingsScreen(onOpenFix = onOpenFix, onQuickAccessAdd = onQuickAccessAdd)
                     }
                 }
             }
@@ -170,7 +173,7 @@ private fun GlassNavigationBar(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = destination.icon,
+                            painter = painterResource(destination.icon),
                             contentDescription = null,
                             tint = tint,
                             modifier = Modifier.height(20.dp),

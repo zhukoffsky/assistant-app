@@ -53,7 +53,9 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                  * вторник» на неделю вперёд второй раз: первый — когда
                  * напоминание сработало по расписанию.
                  */
-                if (!snoozed) repository.onFired(reminder)
+                // Отсрочка отработала — снимаем её срок, иначе он всплывёт
+                // после ближайшей перезагрузки уведомлением за прошлый час.
+                if (snoozed) repository.onSnoozeFired(id) else repository.onFired(reminder)
             } finally {
                 pendingResult.finish()
             }

@@ -64,6 +64,13 @@ interface ReminderDao {
     @Query("UPDATE reminders SET isDone = :isDone, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setDone(id: Long, isDone: Boolean, updatedAt: Instant)
 
+    /**
+     * Отдельным запросом, а не через `updatedAt`: отсрочка — местное дело
+     * телефона, её незачем считать правкой и выгружать в Google Tasks.
+     */
+    @Query("UPDATE reminders SET snoozedUntil = :at WHERE id = :id")
+    suspend fun setSnoozedUntil(id: Long, at: Instant?)
+
     @Query("UPDATE reminders SET dueAt = :dueAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setDueAt(id: Long, dueAt: Instant?, updatedAt: Instant)
 
@@ -116,6 +123,22 @@ interface MedDao {
 
     @Query("SELECT * FROM med_intakes WHERE courseId = :courseId AND scheduledAt = :scheduledAt")
     suspend fun intakeAt(courseId: Long, scheduledAt: Instant): MedIntakeEntity?
+
+    /**
+     * Приём с невыполненной отсрочкой — тот, чей будильник надо вернуть
+     * после перезагрузки.
+     *
+     * Один: приём в сутках один, а отсрочка живёт минуты. Если их всё же
+     * окажется несколько, берётся самая поздняя — она и есть действующая.
+     */
+    @Query(
+        """
+        SELECT * FROM med_intakes
+        WHERE status = 'SNOOZED' AND snoozedUntil IS NOT NULL
+        ORDER BY snoozedUntil DESC LIMIT 1
+        """,
+    )
+    suspend fun snoozedIntake(): MedIntakeEntity?
 
     @Upsert
     suspend fun upsertIntake(intake: MedIntakeEntity): Long

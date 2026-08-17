@@ -19,12 +19,8 @@
     <string name="sync_error">Ошибка: %1$s</string>
     <string name="sync_now">Синхронизировать сейчас</string>
     <string name="sync_disconnect">Отключить</string>
-
-    <string name="diag_title">Проверка доставки</string>
     <string name="diag_subtitle">Эти запреты система ставит молча, и напоминание просто не придёт.</string>
     <string name="diag_problems_title">Мешает доставке</string>
-    <string name="diag_all_good">Ничто не мешает доставке. Кнопка ниже присылает настоящее уведомление тем же путём, что и напоминание, — если сомневаетесь, проверьте.</string>
-    <string name="diag_test_hint">Проверить доставку можно прямо сейчас: уведомление придёт тем же путём, что и настоящее.</string>
     <string name="diag_fix">Исправить</string>
     <string name="diag_notifications">Уведомления разрешены</string>
     <string name="diag_notifications_problem">Не покажется вообще ничего — ни напоминания, ни приём таблеток.</string>
@@ -37,10 +33,6 @@
     <string name="diag_battery_problem">В глубоком сне система может придержать будильник до того, как телефон возьмут в руки.</string>
     <string name="diag_recognizer">Распознавание речи доступно</string>
     <string name="diag_recognizer_problem">На устройстве нет приложения, умеющего распознавать речь, — голосовой ввод работать не будет.</string>
-    <string name="diag_test_button">Прислать тестовое через минуту</string>
-    <string name="diag_test_scheduled">Запланировано. Заблокируй экран и отложи телефон — так проверка честнее.</string>
-    <string name="diag_test_notification_title">Тестовое уведомление</string>
-    <string name="diag_test_notification_text">Доставка работает: напоминания придут так же.</string>
 
     <string name="med_setup_title">Курс приёма</string>
     <string name="med_name_hint">Название лекарства</string>
@@ -125,7 +117,6 @@
     <string name="widget_reminder_empty">Ничего не запланировано</string>
     <string name="widget_meds_description">Сегодняшний приём: лекарство, доза и время</string>
     <string name="widget_meds_empty">Курс не заведён</string>
-    <string name="widget_meds_dose">%1$d %2$s</string>
 
     <string name="tile_reminder">Напоминание</string>
     <string name="tile_shopping">Покупка</string>
@@ -134,12 +125,21 @@
     <string name="shortcut_reminder_long">Продиктовать напоминание</string>
     <string name="shortcut_shopping_short">Покупка</string>
     <string name="shortcut_shopping_long">Продиктовать покупку</string>
-
-    <string name="undo_deleted">Удалено</string>
-    <string name="undo_action">Отменить</string>
     <string name="picker_ok">Готово</string>
     <string name="picker_cancel">Отмена</string>
     <string name="reminder_edit_title">Правка напоминания</string>
     <string name="reminder_edit_name">О чём напомнить</string>
     <string name="reminder_edit_repeat_note">Правило повтора не меняется — переносится только ближайшее срабатывание.</string>
+    <string name="quick_access_title">Быстрый доступ</string>
+    <string name="quick_access_note">Виджет и плитка — самый короткий путь к диктовке. Система спросит, куда их положить.</string>
+    <string name="quick_shopping_widget">Виджет покупок</string>
+    <string name="quick_reminder_widget">Виджет напоминаний</string>
+    <string name="quick_med_widget">Виджет таблеток</string>
+    <string name="quick_shopping_tile">Плитка «Покупка»</string>
+    <string name="quick_reminder_tile">Плитка «Напоминание»</string>
+    <string name="quick_add">Добавить</string>
+    <string name="quick_placed">Уже на экране</string>
+    <string name="widget_shopping_label">Список покупок</string>
+    <string name="widget_reminder_label">Ближайшее напоминание</string>
+    <string name="widget_meds_label">Приём таблеток</string>
 </resources>

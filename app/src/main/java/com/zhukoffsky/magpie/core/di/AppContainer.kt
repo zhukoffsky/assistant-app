@@ -6,11 +6,11 @@ import androidx.room.Room
 import com.zhukoffsky.magpie.core.data.db.MagpieDatabase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
-import com.zhukoffsky.magpie.core.diagnostics.TestAlarmScheduler
 import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
 import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
 import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
+import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperApi
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperTranscriber
 import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
@@ -58,7 +58,10 @@ class AppContainer(context: Context) {
             appContext,
             MagpieDatabase::class.java,
             MagpieDatabase.NAME,
-        ).addMigrations(MagpieDatabase.MIGRATION_1_2).build()
+        ).addMigrations(
+            MagpieDatabase.MIGRATION_1_2,
+            MagpieDatabase.MIGRATION_2_3,
+        ).build()
     }
 
     val shoppingDao by lazy { database.shoppingDao() }
@@ -233,7 +236,7 @@ class AppContainer(context: Context) {
     }
 
     val diagnosticsInspector by lazy { DiagnosticsInspector(appContext) }
-    val testAlarmScheduler by lazy { TestAlarmScheduler(appContext) }
+    val quickAccessInspector by lazy { QuickAccessInspector(appContext) }
 
     private companion object {
         val HTTP_TIMEOUT: Duration = Duration.ofSeconds(30)

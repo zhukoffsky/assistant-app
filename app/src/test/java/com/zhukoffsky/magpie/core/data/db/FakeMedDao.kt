@@ -37,6 +37,11 @@ class FakeMedDao : MedDao {
                 .sortedByDescending { it.scheduledAt }
         }
 
+    override suspend fun snoozedIntake(): MedIntakeEntity? =
+        intakes.value
+            .filter { it.status == IntakeStatus.SNOOZED && it.snoozedUntil != null }
+            .maxByOrNull { it.snoozedUntil!! }
+
     override suspend fun intakeAt(courseId: Long, scheduledAt: Instant): MedIntakeEntity? =
         intakes.value.firstOrNull { it.courseId == courseId && it.scheduledAt == scheduledAt }
 

@@ -48,9 +48,7 @@
     <!--
       Android 11+ прячет от приложения чужие пакеты. Без этого блока
       распознаватель речи не виден и запуск падает в ActivityNotFoundException.
-
-      Разрешение RECORD_AUDIO не объявлено намеренно: записывает
-      приложение-распознаватель в своём процессе, нам микрофон не нужен.
+      Нужен для напоминаний: они по-прежнему идут через системный диалог.
     -->
     <queries>
         <intent>
@@ -149,10 +147,6 @@
             android:exported="false" />
 
         <receiver
-            android:name=".core.diagnostics.TestAlarmReceiver"
-            android:exported="false" />
-
-        <receiver
             android:name=".feature.meds.alarm.MedAlarmReceiver"
             android:exported="false" />
 
@@ -174,7 +168,8 @@
 
         <receiver
             android:name=".feature.shopping.widget.ShoppingWidgetReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_shopping_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -185,7 +180,8 @@
 
         <receiver
             android:name=".feature.meds.widget.MedWidgetReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_meds_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -196,7 +192,8 @@
 
         <receiver
             android:name=".feature.reminders.widget.ReminderVoiceWidgetReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_reminder_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

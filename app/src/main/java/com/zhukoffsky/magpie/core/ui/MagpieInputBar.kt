@@ -10,8 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -102,7 +100,7 @@ fun MagpieInputBar(
                 },
             )
             AccentSquareButton(onClick = onSubmit, contentDescription = addContentDescription) {
-                Icon(Icons.Default.Add, contentDescription = null)
+                Icon(painterResource(R.drawable.ic_add), contentDescription = null)
             }
             AccentSquareButton(
                 onClick = onVoiceInput,

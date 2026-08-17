@@ -1,24 +1,25 @@
 package com.zhukoffsky.magpie.core.ui
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.zhukoffsky.magpie.R
 
-/** Разделы нижней навигации. Порядок в enum задаёт порядок вкладок. */
+/**
+ * Разделы нижней навигации. Порядок в enum задаёт порядок вкладок.
+ *
+ * Иконки — свои ресурсы, а не `Icons.Default.*`: артефакт с иконками
+ * Material закончился на 1.7.8, его перестали развивать. Формы те же, из
+ * официального репозитория, лежат в `res/drawable`.
+ */
 enum class MagpieDestination(
     val route: String,
     @StringRes val labelRes: Int,
-    val icon: ImageVector,
+    @DrawableRes val icon: Int,
 ) {
-    Shopping("shopping", R.string.nav_shopping, Icons.Default.ShoppingCart),
-    Reminders("reminders", R.string.nav_reminders, Icons.Default.Notifications),
-    Meds("meds", R.string.nav_meds, Icons.Default.Favorite),
-    Settings("settings", R.string.nav_settings, Icons.Default.Settings),
+    Shopping("shopping", R.string.nav_shopping, R.drawable.ic_shopping_cart),
+    Reminders("reminders", R.string.nav_reminders, R.drawable.ic_notifications),
+    Meds("meds", R.string.nav_meds, R.drawable.ic_favorite),
+    Settings("settings", R.string.nav_settings, R.drawable.ic_settings),
     ;
 
     companion object {

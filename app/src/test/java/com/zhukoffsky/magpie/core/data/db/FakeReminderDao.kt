@@ -28,6 +28,10 @@ class FakeReminderDao : ReminderDao {
         return id
     }
 
+    override suspend fun setSnoozedUntil(id: Long, at: Instant?) {
+        items.value = items.value.map { if (it.id == id) it.copy(snoozedUntil = at) else it }
+    }
+
     override suspend fun setDone(id: Long, isDone: Boolean, updatedAt: Instant) {
         items.value = items.value.map {
             if (it.id == id) it.copy(isDone = isDone, updatedAt = updatedAt) else it
