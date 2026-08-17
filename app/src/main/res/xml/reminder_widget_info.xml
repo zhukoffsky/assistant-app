@@ -11,6 +11,7 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minHeight="60dp"
     android:minWidth="180dp"
+    android:previewLayout="@layout/widget_preview_reminder"
     android:resizeMode="horizontal|vertical"
     android:targetCellHeight="1"
     android:targetCellWidth="3"

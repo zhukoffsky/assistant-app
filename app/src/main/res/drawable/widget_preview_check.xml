@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Пустой чекбокс в строке покупки. Настоящий виджет рисует `CheckBox` из
+  Glance; повторять его пиксель в пиксель незачем — превью показывает форму
+  строки, а не элемент управления.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="6dp" />
+    <!--
+      Размер задан здесь, а не в макете: чекбокс приезжает в строку как
+      compound drawable у `TextView`, а тому нужен собственный размер —
+      растянуть его атрибутами строки нельзя.
+    -->
+    <size
+        android:width="18dp"
+        android:height="18dp" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/widget_preview_ink2" />
+</shape>

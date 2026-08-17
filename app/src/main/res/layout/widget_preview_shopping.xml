@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Превью виджета покупок для системного списка выбора.
+
+  Показывает образец списка, а не пустое состояние: человек выбирает виджет
+  по тому, что тот умеет, и «Покупать нечего» об этом не говорит ничего.
+
+  Макет статический и рисуется не тем кодом, что виджет, — значит со
+  временем разъедется. Это осознанный размен: живое превью через
+  `setWidgetPreview` система принимает, но не сохраняет (замеры 17 августа,
+  см. `docs/next-steps.md`), а до этой правки в списке стояла вовсе
+  безымянная заглушка с иконкой приложения.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_surface"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!--
+      Заголовок и микрофон одним `TextView` с compound drawable не собрать,
+      о чём просит lint: составная картинка встаёт вплотную к тексту, а
+      кнопка обязана быть прижата к правому краю.
+    -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        tools:ignore="UseCompoundDrawables">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/nav_shopping"
+            android:textColor="@color/widget_preview_ink"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/widget_preview_accent_tile"
+            android:contentDescription="@string/voice_input"
+            android:padding="9dp"
+            android:src="@drawable/ic_mic"
+            android:tint="@color/widget_preview_on_accent" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:drawableStart="@drawable/widget_preview_check"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/widget_preview_shopping_first"
+        android:textColor="@color/widget_preview_ink"
+        android:textSize="14sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:drawableStart="@drawable/widget_preview_check"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/widget_preview_shopping_second"
+        android:textColor="@color/widget_preview_ink"
+        android:textSize="14sp" />
+</LinearLayout>

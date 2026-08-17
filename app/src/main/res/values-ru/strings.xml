@@ -118,6 +118,19 @@
     <string name="widget_meds_description">Сегодняшний приём: лекарство, доза и время</string>
     <string name="widget_meds_empty">Курс не заведён</string>
 
+    <!--
+      Образец содержимого для превью в списке выбора виджетов. Именно
+      образец, а не пустое состояние: в списке человек решает, зачем ему
+      виджет, и «Покупать нечего» на этот вопрос не отвечает.
+    -->
+    <string name="widget_preview_shopping_first">Молоко</string>
+    <string name="widget_preview_shopping_second">Хлеб</string>
+    <string name="widget_preview_reminder_title">Позвонить в поликлинику</string>
+    <string name="widget_preview_reminder_time">Завтра, 09:00</string>
+    <string name="widget_preview_meds_amount">100</string>
+    <string name="widget_preview_meds_name">Магний</string>
+    <string name="widget_preview_meds_time">09:00</string>
+
     <string name="tile_reminder">Напоминание</string>
     <string name="tile_shopping">Покупка</string>
 

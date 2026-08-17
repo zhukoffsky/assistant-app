@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Тёмная половина палитры превью. Значения — `Dark*` из `Color.kt`.
+  Светлая половина и объяснение, почему цвета продублированы, — в
+  `values/colors.xml`.
+-->
+<resources>
+    <color name="widget_preview_bg">#151110</color>
+    <color name="widget_preview_ink">#FCF5F0</color>
+    <color name="widget_preview_ink2">#C6B3A8</color>
+    <color name="widget_preview_accent">#FF8551</color>
+    <color name="widget_preview_on_accent">#26150D</color>
+</resources>

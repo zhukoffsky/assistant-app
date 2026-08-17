@@ -118,6 +118,19 @@
     <string name="widget_meds_description">Dose for today: name, amount and time</string>
     <string name="widget_meds_empty">No course yet</string>
 
+    <!--
+      Sample content for the previews in the widget picker. Sample rather than
+      the empty state on purpose: the picker is where someone decides what a
+      widget is for, and “Nothing to buy” answers nothing.
+    -->
+    <string name="widget_preview_shopping_first">Milk</string>
+    <string name="widget_preview_shopping_second">Bread</string>
+    <string name="widget_preview_reminder_title">Call the clinic</string>
+    <string name="widget_preview_reminder_time">Tomorrow, 09:00</string>
+    <string name="widget_preview_meds_amount">100</string>
+    <string name="widget_preview_meds_name">Magnesium</string>
+    <string name="widget_preview_meds_time">09:00</string>
+
     <string name="tile_reminder">Dictate a reminder</string>
     <string name="tile_shopping">Dictate a purchase</string>
 

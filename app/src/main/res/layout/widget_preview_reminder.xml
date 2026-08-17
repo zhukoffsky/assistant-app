@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Превью виджета напоминаний. Строение то же, что у самого виджета: слева
+  заголовок и время ближайшего напоминания, справа кнопка диктовки.
+  Обоснование статического макета — в `widget_preview_shopping.xml`.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_surface"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:text="@string/widget_preview_reminder_title"
+            android:textColor="@color/widget_preview_ink"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/widget_preview_reminder_time"
+            android:textColor="@color/widget_preview_ink2"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginStart="10dp"
+        android:background="@drawable/widget_preview_accent_tile"
+        android:contentDescription="@string/voice_input"
+        android:padding="9dp"
+        android:src="@drawable/ic_mic"
+        android:tint="@color/widget_preview_on_accent" />
+</LinearLayout>
