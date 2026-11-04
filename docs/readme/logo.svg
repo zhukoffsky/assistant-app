@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="200" height="200">
+  <!-- The app's adaptive icon (res/drawable/ic_launcher_*.xml) as one SVG, cropped to the 72-unit area a launcher shows. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="37.8" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#332723"/>
+      <stop offset="1" stop-color="#120F0E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="25.9" cy="21.6" r="77.8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF8551" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FF8551" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="squircle"><rect x="18" y="18" width="72" height="72" rx="20"/></clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect width="108" height="108" fill="url(#bg)"/>
+    <rect width="108" height="108" fill="url(#glow)"/>
+    <path fill="#FF6B35" d="M57.5,63.5L71.5,39.5L77.5,32.5L78.5,43L64,65Z"/>
+    <path fill="#FF6B35" d="M30.5,43.5L22.5,47.5L30.5,50Z"/>
+    <path fill="#FCF5F0" d="M30,45C31,41.5 34.5,39.5 38,39.5C43.5,39.5 48.5,42.5 52,47C55.5,51.5 57,57.5 56.5,63.5C56,69.5 52,74 47,75.2C41.5,76.4 35.5,74.8 32,70.8C29,67 28,61 28.5,55C28.8,50.5 29.2,47 30,45Z"/>
+    <path fill="#B5A79C" d="M41,53C48,51 55,54 62,62C66,67 69.5,72 70,74C70.2,74.8 69.5,75.2 68.5,74.8C62,72 52,69.5 46,67C41,64.5 39,58 41,53Z"/>
+    <path fill="#3A3330" d="M37.5,46.4a1.9,1.9 0 1,0 -3.8,0a1.9,1.9 0 1,0 3.8,0Z"/>
+  </g>
+</svg>

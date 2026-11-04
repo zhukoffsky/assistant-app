@@ -18,11 +18,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.speech.LiveTranscript
 import com.zhukoffsky.magpie.core.speech.Recording
 import com.zhukoffsky.magpie.core.speech.speechLanguageTag
 import com.zhukoffsky.magpie.core.ui.MagpieRoot
+import kotlinx.coroutines.launch
 
 /**
  * Точка входа голосового ввода: виджет, плитка или кнопка на экране ведут
@@ -144,6 +146,13 @@ class VoiceCaptureActivity : ComponentActivity() {
     }
 
     private fun startRecording() {
+        lifecycleScope.launch {
+            // Модель языка — до микрофона: без неё запись некому разобрать.
+            if (viewModel.prepareRecording(speechLanguageTag())) startRecorder()
+        }
+    }
+
+    private fun startRecorder() {
         // Сеанс открывается до микрофона: первые слова не должны пропасть,
         // пока распознаватель просыпается.
         val session = viewModel.startLiveTranscript(speechLanguageTag())

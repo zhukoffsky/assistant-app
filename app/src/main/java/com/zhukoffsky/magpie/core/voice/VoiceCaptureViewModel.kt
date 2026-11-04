@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.voice
 
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,6 +10,7 @@ import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.speech.LiveTranscript
 import com.zhukoffsky.magpie.core.speech.Recording
 import com.zhukoffsky.magpie.core.speech.RecordingTranscriber
+import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
@@ -44,6 +46,12 @@ enum class VoiceFailure {
      * предлагает продиктовать заново.
      */
     TRANSCRIPTION_FAILED,
+
+    /**
+     * Расшифровать может только телефон, а модели языка на нём нет: система
+     * уже показала окно скачивания. Писать звук до её появления бессмысленно.
+     */
+    SPEECH_MODEL_MISSING,
 }
 
 sealed interface VoiceCaptureUiState {
@@ -97,6 +105,11 @@ class VoiceCaptureViewModel(
     val preferOffline: Boolean = false,
     /** Живая расшифровка на телефоне; null — распознавать на лету нечем. */
     private val liveStarter: (languageTag: String) -> LiveTranscript? = { null },
+    /**
+     * Проверка модели языка на телефоне; null — проверять незачем, есть
+     * облако. Возвращает false, если модели нет и запрошено скачивание.
+     */
+    private val ensureSpeechModel: (suspend (languageTag: String) -> Boolean?)? = null,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -138,6 +151,25 @@ class VoiceCaptureViewModel(
         if (recognitionLaunched || _uiState.value !is VoiceCaptureUiState.Recording) return false
         recognitionLaunched = true
         return true
+    }
+
+    /**
+     * Перед записью: есть ли чем её расшифровать.
+     *
+     * Нужна, когда расшифровать может только телефон — «Без облака» или
+     * сборка без ключей, как APK из релиза. Модель языка там не ставится
+     * сама: до 4 ноября её предлагали скачать только при включении «Без
+     * облака», и человек с чистой установкой диктовал в пустоту — запись шла,
+     * а на «Готово» приходило «не удалось разобрать».
+     *
+     * @return true — записывать; false — модели нет, система показала окно
+     *         скачивания, а экран объясняет, что делать дальше.
+     */
+    suspend fun prepareRecording(languageTag: String): Boolean {
+        if (ensureSpeechModel?.invoke(languageTag) != false) return true
+        MagpieLog.i("voice: no speech model on the phone, download requested")
+        _uiState.value = VoiceCaptureUiState.Failed(VoiceFailure.SPEECH_MODEL_MISSING)
+        return false
     }
 
     /** Секунды и уровень с работающего рекордера. */
@@ -340,6 +372,16 @@ class VoiceCaptureViewModel(
                     },
                     preferOffline = offline,
                     liveStarter = container::startLiveTranscript,
+                    // Модель проверяем, только когда кроме телефона расшифровать
+                    // некому: с облаком окно скачивания посреди диктовки мешало
+                    // бы, а запись разберёт Whisper.
+                    ensureSpeechModel = container.onDeviceTranscriber
+                        ?.takeIf { offline || !container.speechAvailable }
+                        ?.let { transcriber ->
+                            { language: String ->
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) transcriber.ensureModel(language) else null
+                            }
+                        },
                 )
             }
         }

@@ -19,6 +19,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import kotlinx.coroutines.flow.first
 import org.junit.Test
@@ -44,6 +46,7 @@ class VoiceCaptureViewModelTest {
         scheduler: ReminderScheduler = RecordingScheduler(),
         transcript: String? = null,
         canTranscribe: Boolean = true,
+        ensureSpeechModel: (suspend (String) -> Boolean?)? = null,
     ) = VoiceCaptureViewModel(
         target = target,
         shoppingRepository = ShoppingRepository(shoppingDao, clock),
@@ -55,6 +58,7 @@ class VoiceCaptureViewModelTest {
         // то, что происходит с текстом после неё.
         transcriber = { _, _ -> transcript },
         canTranscribe = canTranscribe,
+        ensureSpeechModel = ensureSpeechModel,
         clock = clock,
     )
 
@@ -267,5 +271,47 @@ class VoiceCaptureViewModelTest {
         override fun cancel(id: Long) {
             cancelled += id
         }
+    }
+
+    /**
+     * APK из релиза: ключей нет, расшифровать может только телефон, а модели
+     * языка на нём нет. Записывать незачем — экран просит скачать модель.
+     */
+    @Test
+    fun `missing speech model stops the recording before it starts`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING, ensureSpeechModel = { false })
+
+        assertFalse(vm.prepareRecording("ru-RU"))
+        assertEquals(VoiceCaptureUiState.Failed(VoiceFailure.SPEECH_MODEL_MISSING), vm.uiState.value)
+    }
+
+    @Test
+    fun `retry after the model download starts recording again`() = runTest {
+        var installed = false
+        val vm = viewModel(VoiceTarget.SHOPPING, ensureSpeechModel = { installed })
+        vm.prepareRecording("ru-RU")
+
+        installed = true
+        vm.onRetry()
+
+        assertTrue(vm.shouldStartRecording())
+        assertTrue(vm.prepareRecording("ru-RU"))
+    }
+
+    /** Распознаватель не ответил на вопрос о модели — диктовке не мешаем. */
+    @Test
+    fun `unknown model state does not block dictation`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING, ensureSpeechModel = { null })
+
+        assertTrue(vm.prepareRecording("ru-RU"))
+        assertTrue(vm.uiState.value is VoiceCaptureUiState.Recording)
+    }
+
+    /** С облаком проверки нет вовсе: запись разберёт Whisper. */
+    @Test
+    fun `no check when the cloud can transcribe`() = runTest {
+        val vm = viewModel(VoiceTarget.SHOPPING, ensureSpeechModel = null)
+
+        assertTrue(vm.prepareRecording("ru-RU"))
     }
 }

@@ -140,6 +140,7 @@
     <string name="voice_error_no_permission">Без микрофона записывать нечем. Разреши доступ в настройках системы.</string>
     <string name="voice_error_no_microphone">Микрофон занят: разговор или запись в другом приложении.</string>
     <string name="voice_error_transcription">Не удалось разобрать запись. Продиктуй ещё раз.</string>
+    <string name="voice_error_speech_model">Диктовка работает на телефоне, и ей нужна модель распознавания речи. Подтверди скачивание в системном окне и нажми «Повторить».</string>
     <string name="date_today">Сегодня</string>
     <string name="date_tomorrow">Завтра</string>
     <string name="voice_close">Закрыть</string>
