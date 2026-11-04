@@ -5,15 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,8 +22,11 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -34,12 +37,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
-import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.GroupPosition
+import com.zhukoffsky.magpie.core.ui.ListEntrance
+import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
+import com.zhukoffsky.magpie.core.ui.MagpieCheckbox
+import com.zhukoffsky.magpie.core.ui.MagpieTopBar
+import com.zhukoffsky.magpie.core.ui.fadingTopEdge
+import com.zhukoffsky.magpie.core.ui.glassGroupSegment
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
+import com.zhukoffsky.magpie.core.ui.rememberListEntrance
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
-import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingGroup
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 
 @Composable
@@ -57,6 +67,7 @@ fun ShoppingScreen(
         onCheckedChange = viewModel::onCheckedChange,
         onDelete = viewModel::onDelete,
         onClearChecked = viewModel::onClearChecked,
+        onClearAll = viewModel::onClearAll,
     )
 }
 
@@ -69,8 +80,47 @@ private fun ShoppingScreenContent(
     onCheckedChange: (ShoppingItem, Boolean) -> Unit,
     onDelete: (ShoppingItem) -> Unit,
     onClearChecked: () -> Unit,
+    onClearAll: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    var confirmClearAll by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
+        MagpieTopBar(
+            title = stringResource(R.string.nav_shopping),
+            actions = {
+                if (state.items.isNotEmpty()) {
+                    TextButton(
+                        onClick = { confirmClearAll = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MagpieTheme.colors.ink2),
+                    ) { Text(stringResource(R.string.shopping_clear_all)) }
+                }
+            },
+        )
+
+        if (confirmClearAll) {
+            MagpieAlertDialog(
+                onDismissRequest = { confirmClearAll = false },
+                title = { Text(stringResource(R.string.shopping_clear_all_title)) },
+                text = { Text(stringResource(R.string.shopping_clear_all_text)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            confirmClearAll = false
+                            onClearAll()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text(stringResource(R.string.shopping_clear_all)) }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { confirmClearAll = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MagpieTheme.colors.ink2),
+                    ) { Text(stringResource(R.string.picker_cancel)) }
+                },
+            )
+        }
+
         MagpieInputBar(
             value = state.input,
             onValueChange = onInputChange,
@@ -84,7 +134,7 @@ private fun ShoppingScreenContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 4.dp),
+                    .padding(start = 22.dp, end = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -102,44 +152,54 @@ private fun ShoppingScreenContent(
             }
         }
 
-        // Разделителя нет намеренно: каждая позиция — отдельное стёклышко,
-        // и линия между ними спорила бы с их собственными рамками.
-
         if (state.items.isEmpty() && !state.isLoading) {
             EmptyState()
         } else {
+            /*
+             * Отдел — одна стеклянная карточка, позиции внутри через
+             * разделители. Раньше каждая позиция была отдельным стёклышком
+             * в 78dp с зазором: пять позиций занимали полэкрана, а список
+             * покупок — ровно то место, где плотность важнее всего.
+             */
+            val groups = if (state.groupByCategory) {
+                state.groups
+            } else {
+                listOf(ShoppingGroup(ShoppingCategory.OTHER, state.items))
+            }
+            // Заголовок нужен, только когда отделов больше одного: одинокое
+            // «Прочее» над всем списком ничего не сообщает.
+            val showHeaders = state.groupByCategory && groups.size > 1
+            val entrance = rememberListEntrance()
+
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .fadingTopEdge(scrolled = listState.canScrollBackward),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
             ) {
-                if (state.groupByCategory) {
-                    /*
-                     * Сквозная нумерация через все отделы, а не своя в
-                     * каждом: каскадное появление списка считает по ней
-                     * задержку, и с нумерацией по группам строки въезжали бы
-                     * пачками, как будто список моргает.
-                     */
-                    var index = 0
-                    state.groups.forEach { (category, items) ->
-                        item(key = "category-${category.name}") {
-                            CategoryHeader(category)
+                /*
+                 * Сквозная нумерация через все отделы, а не своя в каждом:
+                 * каскадное появление списка считает по ней задержку, и с
+                 * нумерацией по группам строки въезжали бы пачками, как будто
+                 * список моргает.
+                 */
+                var index = 0
+                groups.forEachIndexed { groupIndex, (category, items) ->
+                    val groupKey = category?.name ?: "bought"
+                    if (showHeaders) {
+                        item(key = "category-$groupKey") {
+                            CategoryHeader(category, first = groupIndex == 0)
                         }
-                        items(items = items, key = { it.id }) { item ->
-                            SwipeableRow(
-                                item = item,
-                                index = index++,
-                                onCheckedChange = { checked -> onCheckedChange(item, checked) },
-                                onDelete = { onDelete(item) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
+                    } else if (groupIndex > 0) {
+                        item(key = "gap-$groupKey") { Spacer(Modifier.height(12.dp)) }
                     }
-                } else {
-                    itemsIndexed(items = state.items, key = { _, item -> item.id }) { index, item ->
+                    itemsIndexed(items = items, key = { _, item -> item.id }) { position, item ->
                         SwipeableRow(
                             item = item,
-                            index = index,
+                            index = index++,
+                            entrance = entrance,
+                            position = GroupPosition.of(position, items.size),
                             onCheckedChange = { checked -> onCheckedChange(item, checked) },
                             onDelete = { onDelete(item) },
                             modifier = Modifier.animateItem(),
@@ -151,14 +211,14 @@ private fun ShoppingScreenContent(
     }
 }
 
-/** Заголовок отдела: только текст, без стекла — это не строка списка. */
+/** Заголовок отдела: только текст, без стекла — это не строка списка. Без отдела — купленное. */
 @Composable
-private fun CategoryHeader(category: ShoppingCategory) {
+private fun CategoryHeader(category: ShoppingCategory?, first: Boolean) {
     Text(
-        text = stringResource(category.labelRes),
+        text = stringResource(category?.labelRes ?: R.string.shopping_bought_header),
         style = MaterialTheme.typography.labelLarge,
         color = MagpieTheme.colors.ink2,
-        modifier = Modifier.padding(start = 10.dp, top = 6.dp),
+        modifier = Modifier.padding(start = 10.dp, top = if (first) 4.dp else 18.dp, bottom = 8.dp),
     )
 }
 
@@ -167,6 +227,8 @@ private fun CategoryHeader(category: ShoppingCategory) {
 private fun SwipeableRow(
     item: ShoppingItem,
     index: Int,
+    entrance: ListEntrance,
+    position: GroupPosition,
     onCheckedChange: (Boolean) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -181,14 +243,14 @@ private fun SwipeableRow(
 
     SwipeToDismissBox(
         state = dismissState,
-        modifier = modifier.staggeredEntrance(index),
+        // Кусок карточки висит на самой коробке, а не на строке: строку
+        // тянут, а карточка остаётся на месте, и корзина видна на её фоне.
+        modifier = modifier
+            .staggeredEntrance(index, entrance)
+            .glassGroupSegment(position, MagpieTheme.colors),
         backgroundContent = {
-            /*
-             * Корзина рисуется только пока строку тянут. Раньше её можно было
-             * держать всегда: непрозрачная строка её закрывала. Стекло —
-             * полупрозрачное, и подложка стала просвечивать сквозь каждую
-             * строку, из-за чего список выглядел «уже удалённым».
-             */
+            // Корзина рисуется только пока строку тянут: в покое строка
+            // прозрачная, и постоянная корзина просвечивала бы сквозь неё.
             if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
                 Box(
                     modifier = Modifier
@@ -199,7 +261,7 @@ private fun SwipeableRow(
                     Icon(
                         painter = painterResource(R.drawable.ic_delete),
                         contentDescription = stringResource(R.string.shopping_delete),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.error,
                     )
                 }
             }
@@ -211,33 +273,22 @@ private fun SwipeableRow(
 
 @Composable
 private fun ItemRow(item: ShoppingItem, onCheckedChange: (Boolean) -> Unit) {
-    GlassSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(MagpieRadius.md),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
+        MagpieCheckbox(checked = item.isChecked, onCheckedChange = onCheckedChange)
+        Text(
+            text = item.title,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(
-                checked = item.isChecked,
-                onCheckedChange = onCheckedChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                    uncheckedColor = MagpieTheme.colors.ink3,
-                ),
-            )
-            Text(
-                text = item.title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
-                color = if (item.isChecked) MagpieTheme.colors.ink3 else MagpieTheme.colors.ink,
-            )
-        }
+                .weight(1f)
+                .padding(vertical = 10.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+            color = if (item.isChecked) MagpieTheme.colors.ink3 else MagpieTheme.colors.ink,
+        )
     }
 }
 

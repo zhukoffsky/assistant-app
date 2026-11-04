@@ -11,9 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,11 +22,11 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -40,10 +39,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.DatePickerDialog
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.MagpieCheckbox
+import com.zhukoffsky.magpie.core.ui.MagpieTopBar
+import com.zhukoffsky.magpie.core.ui.fadingTopEdge
 import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
 import com.zhukoffsky.magpie.core.ui.MagpieInputBar
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
 import com.zhukoffsky.magpie.core.ui.appLocale
+import com.zhukoffsky.magpie.core.ui.ListEntrance
+import com.zhukoffsky.magpie.core.ui.rememberListEntrance
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -51,7 +55,7 @@ import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.zhukoffsky.magpie.core.util.DateFormats
 
 @Composable
 fun RemindersScreen(
@@ -72,7 +76,11 @@ fun RemindersScreen(
         )
     }
 
+    val listState = rememberLazyListState()
+
     Column(modifier = Modifier.fillMaxSize()) {
+        MagpieTopBar(title = stringResource(R.string.nav_reminders))
+
         MagpieInputBar(
             value = state.input,
             onValueChange = viewModel::onInputChange,
@@ -85,10 +93,20 @@ fun RemindersScreen(
         if (state.reminders.isEmpty() && !state.isLoading) {
             EmptyState()
         } else {
+            /*
+             * Каждое напоминание — своя карточка, а не строка общей, как у
+             * покупок. Покупки — один список на один поход в магазин;
+             * напоминания — разные дела на разные дни, и общая карточка
+             * склеивала их в один пункт. Пробовали 4 ноября и вернули.
+             */
+            val entrance = rememberListEntrance()
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .fadingTopEdge(scrolled = listState.canScrollBackward),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 itemsIndexed(
                     items = state.reminders,
@@ -97,6 +115,7 @@ fun RemindersScreen(
                     SwipeableRow(
                         reminder = reminder,
                         index = index,
+                        entrance = entrance,
                         onDoneChange = { done -> viewModel.onDoneChange(reminder, done) },
                         onDelete = { viewModel.onDelete(reminder) },
                         onEdit = { editing = reminder },
@@ -113,6 +132,7 @@ fun RemindersScreen(
 private fun SwipeableRow(
     reminder: Reminder,
     index: Int,
+    entrance: ListEntrance,
     onDoneChange: (Boolean) -> Unit,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
@@ -128,7 +148,7 @@ private fun SwipeableRow(
 
     SwipeToDismissBox(
         state = dismissState,
-        modifier = modifier.staggeredEntrance(index),
+        modifier = modifier.staggeredEntrance(index, entrance),
         backgroundContent = {
             // Корзина видна только пока строку тянут: сквозь стекло
             // постоянная подложка просвечивала бы на каждой строке.
@@ -142,7 +162,7 @@ private fun SwipeableRow(
                     Icon(
                         painter = painterResource(R.drawable.ic_delete),
                         contentDescription = stringResource(R.string.shopping_delete),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.error,
                     )
                 }
             }
@@ -166,19 +186,11 @@ private fun ReminderRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onEdit)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = reminder.isDone,
-            onCheckedChange = onDoneChange,
-            colors = CheckboxDefaults.colors(
-                checkedColor = MaterialTheme.colorScheme.primary,
-                checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                uncheckedColor = MagpieTheme.colors.ink3,
-            ),
-        )
-        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+      ) {
+        MagpieCheckbox(checked = reminder.isDone, onCheckedChange = onDoneChange)
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
             Text(
                 text = reminder.title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -254,7 +266,7 @@ private fun EditReminderDialog(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showDatePicker = true }) {
-                        Text(moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", appLocale())))
+                        Text(DateFormats.date(moment.toLocalDate(), appLocale()))
                     }
                     TextButton(onClick = { showTimePicker = true }) {
                         Text(moment.format(DateTimeFormatter.ofPattern("HH:mm", appLocale())))

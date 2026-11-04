@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
-import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
+import com.zhukoffsky.magpie.core.speech.LiveTranscript
+import com.zhukoffsky.magpie.core.speech.Recording
+import com.zhukoffsky.magpie.core.speech.RecordingTranscriber
 import com.zhukoffsky.magpie.feature.reminders.data.ReminderRepository
 import com.zhukoffsky.magpie.feature.reminders.domain.PhraseParser
 import com.zhukoffsky.magpie.feature.reminders.domain.RepeatRule
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.Clock
 import java.time.ZonedDateTime
 
@@ -88,8 +91,12 @@ class VoiceCaptureViewModel(
     private val reminderRepository: ReminderRepository,
     private val parser: PhraseParser,
     private val shoppingParser: ShoppingItemsParser,
-    private val transcriber: SpeechTranscriber,
+    private val transcriber: RecordingTranscriber,
     private val canTranscribe: Boolean = true,
+    /** Режим «Без облака»: системный диалог напоминаний просим работать офлайн. */
+    val preferOffline: Boolean = false,
+    /** Живая расшифровка на телефоне; null — распознавать на лету нечем. */
+    private val liveStarter: (languageTag: String) -> LiveTranscript? = { null },
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
@@ -148,13 +155,19 @@ class VoiceCaptureViewModel(
     }
 
     /**
+     * Запись пошла: открыть расшифровку на лету, если телефон умеет.
+     * Звонить с главного потока — распознаватель живёт на нём.
+     */
+    fun startLiveTranscript(languageTag: String): LiveTranscript? = liveStarter(languageTag)
+
+    /**
      * Запись закончена — расшифровываем и дальше идём общим путём.
      *
-     * @param audio файл целиком; null — записать не удалось или в записи
-     *        не оказалось звука (нажали «Готово» мгновенно).
+     * @param recording запись целиком с живой расшифровкой; null — записать
+     *        не удалось или в записи не оказалось звука («Готово» мгновенно).
      */
-    fun onAudioRecorded(audio: ByteArray?, languageTag: String) {
-        if (audio == null) {
+    fun onAudioRecorded(recording: Recording?, languageTag: String) {
+        if (recording == null) {
             _uiState.value = failure()
             return
         }
@@ -163,7 +176,7 @@ class VoiceCaptureViewModel(
         _uiState.value = VoiceCaptureUiState.Transcribing
 
         viewModelScope.launch {
-            val text = transcriber.transcribe(audio, languageTag)
+            val text = transcriber.transcribe(recording, languageTag)
             transcribing = false
 
             if (text.isNullOrBlank()) {
@@ -308,14 +321,25 @@ class VoiceCaptureViewModel(
             initializer {
                 val container =
                     (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MagpieApp).container
+                // Чтение настройки блокирует старт на миллисекунды, но ошибаться
+                // здесь нельзя: экран выбирает путь один раз, и в режиме «Без
+                // облака» он не должен даже начинать запись, которую некому
+                // расшифровать на телефоне.
+                val offline = runBlocking { container.cloudPreferences.isOfflineOnly() }
                 VoiceCaptureViewModel(
                     target = target,
                     shoppingRepository = container.shoppingRepository,
                     reminderRepository = container.reminderRepository,
                     parser = container.phraseParser,
                     shoppingParser = container.shoppingItemsParser,
-                    transcriber = container.speechTranscriber,
-                    canTranscribe = container.speechAvailable,
+                    transcriber = container.recordingTranscriber,
+                    canTranscribe = if (offline) {
+                        container.onDeviceSpeechAvailable
+                    } else {
+                        container.transcriptionAvailable
+                    },
+                    preferOffline = offline,
+                    liveStarter = container::startLiveTranscript,
                 )
             }
         }

@@ -33,4 +33,8 @@ class FakeShoppingDao : ShoppingDao {
     override suspend fun deleteChecked() {
         items.value = items.value.filterNot { it.isChecked }
     }
+
+    override suspend fun deleteAll() {
+        items.value = emptyList()
+    }
 }

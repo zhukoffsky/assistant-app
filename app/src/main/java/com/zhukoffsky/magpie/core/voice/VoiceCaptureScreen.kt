@@ -44,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.blurBehindWindow
+import com.zhukoffsky.magpie.core.ui.rememberListEntrance
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
@@ -313,7 +314,7 @@ private fun BottomCard(content: @Composable () -> Unit) {
                 // на неё, срезая нижнее скругление и кнопку «Сохранить».
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(14.dp)
-                .staggeredEntrance(index = 0)
+                .staggeredEntrance(index = 0, entrance = rememberListEntrance())
                 .background(MagpieTheme.colors.background, shape)
                 .border(BorderStroke(1.dp, MagpieTheme.colors.glassBorder), shape),
         ) {

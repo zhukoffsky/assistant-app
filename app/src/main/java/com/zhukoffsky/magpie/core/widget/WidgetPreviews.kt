@@ -6,6 +6,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.os.Process
+import java.io.File
+import androidx.core.content.edit
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.ExperimentalGlanceApi
@@ -67,10 +69,27 @@ object WidgetPreviews {
      * у системы ещё нет, а все три перезаписываем лишь при смене языка
      * ([force]), когда они действительно устарели.
      *
+     * **И ещё раз — раз на установку и язык, а не на каждом старте.** Замер
+     * 4 ноября: система отвечает `accepted=false` на каждом старте процесса,
+     * а сборка трёх превью стоит около 1,4 с процессора в фоне. Превью при
+     * этом — только картинка в списке выбора; то, что виджет показывает на
+     * экране, обновляется своим путём (`updateAll`) и от этого не зависит.
+     * Поэтому повторная попытка — только когда что-то в превью могло
+     * измениться: новая установка приложения или другой язык.
+     *
      * @param force переписать даже то, что уже стоит.
+     * @param language выбранный язык: от него зависит текст в превью.
      */
-    suspend fun update(context: Context, force: Boolean) {
+    suspend fun update(context: Context, force: Boolean, language: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
+
+        val marker = "${installedAt(context)}:$language"
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_DONE, null) == marker) {
+            MagpieLog.i("preview: skipped, already tried for this install and language")
+            return
+        }
+        prefs.edit { putString(KEY_DONE, marker) }
 
         val manager = AppWidgetManager.getInstance(context)
         entries.forEach { entry ->
@@ -125,7 +144,39 @@ object WidgetPreviews {
                     MagpieLog.w("preview: ${entry.receiver.simpleName} failed", it)
                 }
         }
+
+        deleteComposeLeftovers(context)
     }
+
+    /**
+     * Убрать файлы раскладки, которые `compose(...)` оставляет после себя.
+     *
+     * Чтобы скомпоновать виджет вне лаунчера, Glance выдумывает ему id —
+     * всегда отрицательный — и заводит под него файл `appWidgetLayout-<id>`
+     * в `files/datastore`. Удалять его некому: виджета с таким id не
+     * существует. Превью у системы не держатся (см. замеры 17 августа в
+     * `CLAUDE.md`), так что собираются заново почти на каждом старте
+     * процесса, и к ноябрю на телефоне скопилось 142 таких файла — по
+     * три-пять в день с 13 августа.
+     *
+     * Файлы настоящих виджетов не трогаются: их id положительные, и имя
+     * выглядит как `appWidgetLayout-34`, а не `appWidgetLayout--1013362666`.
+     */
+    private fun deleteComposeLeftovers(context: Context) {
+        val leftovers = File(context.filesDir, "datastore")
+            .listFiles { file -> file.name.startsWith(FAKE_ID_LAYOUT_PREFIX) }
+            .orEmpty()
+        val deleted = leftovers.count { it.delete() }
+        if (leftovers.isNotEmpty()) MagpieLog.i("preview: deleted $deleted of ${leftovers.size} layout leftovers")
+    }
+
+    private const val FAKE_ID_LAYOUT_PREFIX = "appWidgetLayout--"
+    private const val PREFS = "widget_previews"
+    private const val KEY_DONE = "triedFor"
+
+    /** Время установки пакета: `versionCode` у сборок один и тот же, а оно меняется с каждым APK. */
+    private fun installedAt(context: Context): Long =
+        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
 
     private const val CATEGORY = AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN
 

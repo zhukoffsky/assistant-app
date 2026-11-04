@@ -2,9 +2,9 @@ package com.zhukoffsky.magpie.feature.meds.widget
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -36,6 +36,7 @@ import com.zhukoffsky.magpie.core.data.db.IntakeStatus
 import com.zhukoffsky.magpie.core.settings.forSelectedLanguage
 import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.feature.meds.domain.TodayDose
+import com.zhukoffsky.magpie.feature.meds.domain.labelRes
 import kotlinx.coroutines.flow.first
 import java.time.format.DateTimeFormatter
 
@@ -101,7 +102,7 @@ class MedWidget : GlanceAppWidget() {
                         DoseContent(
                             dose = dose,
                             amount = dose.doseMg.toString(),
-                            unit = strings.getString(R.string.med_unit_mg),
+                            unit = strings.getString(dose.course.unit.labelRes),
                             time = dose.course.timeOfDay.format(
                                 DateTimeFormatter.ofPattern("HH:mm", locale),
                             ),

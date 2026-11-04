@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -27,6 +28,19 @@ enum class SyncState {
     /** Последняя попытка выгрузки не удалась. */
     ERROR,
 }
+
+/**
+ * В чём меряется доза курса.
+ *
+ * Сначала единица была одна — миллиграммы, под сценарий владельца. Но
+ * таблетки чаще пьют штуками, чем миллиграммами, а «1000 мг» у витамина D
+ * просто неправда. Выбор закрытый, а не свободная строка: в уведомлении,
+ * виджете и истории единица должна писаться одинаково.
+ *
+ * Числа в цикле доз остаются целыми, поэтому половинку таблетки так не
+ * записать. Понадобится — это отдельная правка модели, а не этого списка.
+ */
+enum class DoseUnit { MG, PIECES }
 
 /** Итог запланированного приёма лекарства. */
 enum class IntakeStatus {
@@ -99,7 +113,10 @@ data class ReminderEntity(
 data class MedCourseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    /** Цикл доз в единицах [unit]. Имя колонки — наследство тех времён, когда единица была одна. */
     val dosesMg: List<Int>,
+    @ColumnInfo(defaultValue = "MG")
+    val unit: DoseUnit = DoseUnit.MG,
     /** Время ежедневного приёма. */
     val timeOfDay: LocalTime,
     /** Первый день курса; задаёт фазу цикла доз. */

@@ -35,7 +35,7 @@ class ShoppingGroupingTest {
                 ShoppingCategory.DAIRY,
                 ShoppingCategory.HOUSEHOLD,
             ),
-            state.groups.map { it.first },
+            state.groups.map { it.category },
         )
     }
 
@@ -48,7 +48,7 @@ class ShoppingGroupingTest {
             ),
         )
 
-        assertEquals(ShoppingCategory.OTHER, state.groups.last().first)
+        assertEquals(ShoppingCategory.OTHER, state.groups.last().category)
     }
 
     @Test
@@ -67,7 +67,7 @@ class ShoppingGroupingTest {
             item("батарейки", ShoppingCategory.OTHER),
         )
 
-        val grouped = ShoppingUiState(items = items).groups.flatMap { it.second }
+        val grouped = ShoppingUiState(items = items).groups.flatMap { it.items }
 
         assertEquals(items.size, grouped.size)
         assertEquals(items.map { it.id }.toSet(), grouped.map { it.id }.toSet())
@@ -78,14 +78,44 @@ class ShoppingGroupingTest {
         val state = ShoppingUiState(
             items = listOf(
                 item("молоко", ShoppingCategory.DAIRY),
-                item("сыр", ShoppingCategory.DAIRY, isChecked = true),
                 item("кефир", ShoppingCategory.DAIRY),
+                item("творог", ShoppingCategory.DAIRY),
             ),
         )
 
         assertEquals(
-            listOf("молоко", "сыр", "кефир"),
-            state.groups.single().second.map { it.title },
+            listOf("молоко", "кефир", "творог"),
+            state.groups.single().items.map { it.title },
         )
+    }
+
+    /**
+     * Купленное уходит из своего отдела в самый низ. Пока оно оставалось в
+     * отделе, до конца похода список рябил зачёркнутым между нужным.
+     */
+    @Test
+    fun `bought items leave their aisle for the bottom of the list`() {
+        val state = ShoppingUiState(
+            items = listOf(
+                item("молоко", ShoppingCategory.DAIRY),
+                item("сыр", ShoppingCategory.CHEESE, isChecked = true),
+                item("яблоки", ShoppingCategory.PRODUCE),
+                item("кефир", ShoppingCategory.DAIRY, isChecked = true),
+            ),
+        )
+
+        assertEquals(
+            listOf(ShoppingCategory.PRODUCE, ShoppingCategory.DAIRY, null),
+            state.groups.map { it.category },
+        )
+        assertEquals(listOf("сыр", "кефир"), state.groups.last().items.map { it.title })
+        assertEquals(listOf("молоко"), state.groups[1].items.map { it.title })
+    }
+
+    @Test
+    fun `nothing bought, no bought group`() {
+        val state = ShoppingUiState(items = listOf(item("кефир", ShoppingCategory.DAIRY)))
+
+        assertEquals(listOf(ShoppingCategory.DAIRY), state.groups.map { it.category })
     }
 }

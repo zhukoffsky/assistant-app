@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.feature.meds.domain
 
+import com.zhukoffsky.magpie.core.data.db.DoseUnit
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
 import java.time.Instant
 import java.time.LocalDate
@@ -16,6 +17,8 @@ data class MedCourse(
     val timeOfDay: LocalTime,
     val startDate: LocalDate,
     val isActive: Boolean,
+    /** В чём меряются числа [dosesMg]. */
+    val unit: DoseUnit = DoseUnit.MG,
 )
 
 data class MedIntake(

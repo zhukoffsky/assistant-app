@@ -44,6 +44,7 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieGlanceColors
 import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
+import com.zhukoffsky.magpie.feature.shopping.domain.groupedForShop
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import com.zhukoffsky.magpie.feature.shopping.ui.labelRes
 import kotlinx.coroutines.flow.first
@@ -130,15 +131,14 @@ private fun WidgetContent(context: Context, items: List<ShoppingItem>, grouped: 
                      *
                      * Идентификаторы заголовков берутся из отрицательного
                      * диапазона: у строк это идентификаторы записей, и
-                     * пересечься с ними нельзя.
+                     * пересечься с ними нельзя. Купленное — последней
+                     * группой, как и на экране.
                      */
-                    ShoppingCategory.entries.forEach { category ->
-                        val inCategory = items.filter { it.category == category }
-                        if (inCategory.isEmpty()) return@forEach
-
-                        item(itemId = -(category.ordinal + 1).toLong()) {
+                    items.groupedForShop().forEach { (category, inCategory) ->
+                        val headerId = -((category?.ordinal ?: ShoppingCategory.entries.size) + 1).toLong()
+                        item(itemId = headerId) {
                             Text(
-                                text = context.getString(category.labelRes),
+                                text = context.getString(category?.labelRes ?: R.string.shopping_bought_header),
                                 style = TextStyle(
                                     color = GlanceTheme.colors.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium,

@@ -12,14 +12,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.core.ui.theme.MagpieColors
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
@@ -149,3 +154,69 @@ fun MagpieScreenBackground(
     animated = animated,
     content = content,
 )
+
+/** Место строки внутри сгруппированной карточки — от него зависят скругления. */
+enum class GroupPosition {
+    SINGLE, FIRST, MIDDLE, LAST;
+
+    companion object {
+        fun of(index: Int, count: Int): GroupPosition = when {
+            count == 1 -> SINGLE
+            index == 0 -> FIRST
+            index == count - 1 -> LAST
+            else -> MIDDLE
+        }
+    }
+}
+
+/**
+ * Кусок общей стеклянной карточки, нарезанной на строки списка.
+ *
+ * Зачем нарезка, а не одна карточка вокруг столбца строк: строки живут в
+ * `LazyColumn` по отдельности, и только так каждая сохраняет `animateItem` —
+ * отмеченная позиция плавно уезжает вниз, а не перескакивает.
+ *
+ * Каждая строка рисует свой кусок скруглённого прямоугольника, вытянутого за
+ * её края и подрезанного по ним: у первой видны верхние углы, у последней —
+ * нижние, у средних — только боковые стенки. Вместе куски складываются в одну
+ * карточку без швов. Между строками — разделитель с отступом под чекбокс,
+ * как в системных списках.
+ */
+fun Modifier.glassGroupSegment(
+    position: GroupPosition,
+    colors: MagpieColors,
+    radius: Dp = MagpieRadius.md,
+    dividerInset: Dp = 56.dp,
+): Modifier = drawBehind {
+    val r = radius.toPx()
+    val stroke = 1.dp.toPx()
+    val openTop = position == GroupPosition.MIDDLE || position == GroupPosition.LAST
+    val openBottom = position == GroupPosition.MIDDLE || position == GroupPosition.FIRST
+    val top = if (openTop) -2 * r else 0f
+    val height = size.height - top + if (openBottom) 2 * r else 0f
+
+    clipRect {
+        drawRoundRect(
+            color = colors.glass,
+            topLeft = Offset(0f, top),
+            size = Size(size.width, height),
+            cornerRadius = CornerRadius(r),
+        )
+        drawRoundRect(
+            color = colors.glassBorder,
+            topLeft = Offset(stroke / 2, top + stroke / 2),
+            size = Size(size.width - stroke, height - stroke),
+            cornerRadius = CornerRadius(r - stroke / 2),
+            style = Stroke(stroke),
+        )
+    }
+
+    if (openTop) {
+        drawLine(
+            color = colors.controlBorder,
+            start = Offset(dividerInset.toPx(), 0f),
+            end = Offset(size.width - 16.dp.toPx(), 0f),
+            strokeWidth = stroke,
+        )
+    }
+}

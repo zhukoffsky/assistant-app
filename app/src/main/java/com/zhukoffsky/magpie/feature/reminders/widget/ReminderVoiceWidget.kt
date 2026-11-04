@@ -2,9 +2,9 @@ package com.zhukoffsky.magpie.feature.reminders.widget
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,8 +43,8 @@ import com.zhukoffsky.magpie.core.voice.VoiceCaptureActivity
 import com.zhukoffsky.magpie.core.voice.VoiceTarget
 import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
 import kotlinx.coroutines.flow.first
+import com.zhukoffsky.magpie.core.util.DateFormats
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -172,9 +172,10 @@ private fun WidgetContent(context: Context, locale: Locale, reminder: Reminder?)
                 )
                 reminder.dueAt?.let { dueAt ->
                     Text(
-                        text = DateTimeFormatter
-                            .ofPattern("d MMM, HH:mm", locale)
-                            .format(dueAt.atZone(ZoneId.systemDefault())),
+                        text = DateFormats.dateTime(
+                            dueAt.atZone(ZoneId.systemDefault()).toLocalDateTime(),
+                            locale,
+                        ),
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurfaceVariant,
                             fontSize = 13.sp,

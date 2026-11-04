@@ -73,5 +73,21 @@ interface OpenAiCompatApi {
          * который отвечает «Insufficient balance».
          */
         const val MODEL = "glm-4.7-flash"
+
+        /**
+         * Запасной провайдер — Cloudflare Workers AI, его OpenAI-совместимый
+         * адрес. Учётная запись в пути, как и у расшифровки речи.
+         */
+        fun workersAiBaseUrl(accountId: String): String =
+            "https://api.cloudflare.com/client/v4/accounts/$accountId/ai/v1/"
+
+        /**
+         * Из трёх кандидатов, проверенных 4 ноября на живых диктовках:
+         * Mistral Small 3.1 разрезал и разложил по отделам всё верно за ~3 с;
+         * `gemma-4-26b-a4b-it` вернул пустой ответ за 21 с; Llama 4 Scout
+         * разрезал верно, но отнёс пельмени к бакалее. `response_format` и
+         * `thinking` Mistral принимает молча.
+         */
+        const val WORKERS_AI_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct"
     }
 }

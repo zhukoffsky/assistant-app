@@ -19,8 +19,10 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.speech.LiveTranscript
+import com.zhukoffsky.magpie.core.speech.Recording
+import com.zhukoffsky.magpie.core.speech.speechLanguageTag
 import com.zhukoffsky.magpie.core.ui.MagpieRoot
-import java.util.Locale
 
 /**
  * Точка входа голосового ввода: виджет, плитка или кнопка на экране ведут
@@ -51,7 +53,10 @@ class VoiceCaptureActivity : ComponentActivity() {
         VoiceCaptureViewModel.factory(target)
     }
 
-    private val recorder by lazy { VoiceRecorder(this) }
+    private val recorder = VoiceRecorder()
+
+    /** Расшифровка на лету, пока идёт запись; null — телефон не умеет. */
+    private var live: LiveTranscript? = null
     private val handler = Handler(Looper.getMainLooper())
     private var startedAt = 0L
 
@@ -126,6 +131,8 @@ class VoiceCaptureActivity : ComponentActivity() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         recorder.cancel()
+        live?.cancel()
+        live = null
         super.onDestroy()
     }
 
@@ -137,10 +144,15 @@ class VoiceCaptureActivity : ComponentActivity() {
     }
 
     private fun startRecording() {
-        if (!recorder.start()) {
+        // Сеанс открывается до микрофона: первые слова не должны пропасть,
+        // пока распознаватель просыпается.
+        val session = viewModel.startLiveTranscript(speechLanguageTag())
+        if (!recorder.start(onChunk = { chunk -> session?.write(chunk) })) {
+            session?.cancel()
             viewModel.onMicrophoneUnavailable()
             return
         }
+        live = session
         startedAt = SystemClock.elapsedRealtime()
         handler.post(tick)
     }
@@ -164,7 +176,11 @@ class VoiceCaptureActivity : ComponentActivity() {
     /** «Готово»: единственное, что заканчивает запись. */
     private fun finishRecording() {
         handler.removeCallbacksAndMessages(null)
-        viewModel.onAudioRecorded(recorder.stop(), Locale.getDefault().toLanguageTag())
+        val pcm = recorder.stop()
+        val session = live
+        live = null
+        if (pcm == null) session?.cancel()
+        viewModel.onAudioRecorded(pcm?.let { Recording(it, session) }, speechLanguageTag())
     }
 
     private fun startRecognition() {
@@ -173,9 +189,12 @@ class VoiceCaptureActivity : ComponentActivity() {
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
             )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_prompt_reminder))
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            // «Без облака»: распознаватель Google по умолчанию ходит в сеть,
+            // но умеет и на телефоне, если скачана модель языка.
+            if (viewModel.preferOffline) putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
 
         try {

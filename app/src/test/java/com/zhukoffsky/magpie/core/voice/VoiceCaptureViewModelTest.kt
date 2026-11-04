@@ -1,5 +1,7 @@
 package com.zhukoffsky.magpie.core.voice
 
+import com.zhukoffsky.magpie.core.speech.Pcm16
+import com.zhukoffsky.magpie.core.speech.Recording
 import com.zhukoffsky.magpie.core.data.db.FakeReminderDao
 import com.zhukoffsky.magpie.core.data.db.FakeShoppingDao
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderScheduler
@@ -231,7 +233,7 @@ class VoiceCaptureViewModelTest {
     fun `a transcribed recording becomes items in the list`() = runTest {
         val vm = viewModel(VoiceTarget.SHOPPING, transcript = "молоко, хлеб, яйца")
 
-        vm.onAudioRecorded(ByteArray(16), "ru-RU")
+        vm.onAudioRecorded(Recording(Pcm16(ByteArray(16), 16_000, 1), live = null), "ru-RU")
 
         assertEquals(
             listOf("молоко", "хлеб", "яйца"),
@@ -249,7 +251,7 @@ class VoiceCaptureViewModelTest {
     fun `a recording that cannot be transcribed is reported`() = runTest {
         val vm = viewModel(VoiceTarget.SHOPPING, transcript = null)
 
-        vm.onAudioRecorded(ByteArray(16), "ru-RU")
+        vm.onAudioRecorded(Recording(Pcm16(ByteArray(16), 16_000, 1), live = null), "ru-RU")
 
         assertEquals(
             VoiceCaptureUiState.Failed(VoiceFailure.TRANSCRIPTION_FAILED),

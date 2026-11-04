@@ -6,6 +6,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import android.os.Build
+import com.zhukoffsky.magpie.core.settings.CloudPreferences
+import com.zhukoffsky.magpie.core.speech.OnDeviceTranscriber
+import com.zhukoffsky.magpie.core.speech.speechLanguageTag
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
 import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
@@ -39,6 +43,10 @@ class SettingsViewModel(
     private val syncTrigger: SyncTrigger,
     private val appearance: AppearancePreferences,
     private val shopping: ShoppingPreferences,
+    private val cloud: CloudPreferences,
+    private val onDeviceTranscriber: OnDeviceTranscriber?,
+    /** Есть ли на телефоне распознаватель для режима «Без облака». */
+    val onDeviceSpeechAvailable: Boolean,
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode.stateIn(
@@ -65,6 +73,26 @@ class SettingsViewModel(
 
     fun onGroupByCategoryChange(enabled: Boolean) {
         viewModelScope.launch { shopping.setGroupByCategory(enabled) }
+    }
+
+    val offlineOnly: StateFlow<Boolean> = cloud.offlineOnly.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = false,
+    )
+
+    /**
+     * Включая «Без облака», сразу проверяем модель языка на телефоне: без
+     * неё офлайн-расшифровка молча ничего не распознаёт, и первая же диктовка
+     * выглядела бы поломкой. Нет модели — система предложит её скачать.
+     */
+    fun onOfflineOnlyChange(enabled: Boolean) {
+        viewModelScope.launch {
+            cloud.setOfflineOnly(enabled)
+            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                onDeviceTranscriber?.ensureModel(speechLanguageTag())
+            }
+        }
     }
 
     fun onLanguageSelected(language: AppLanguage) {
@@ -159,6 +187,9 @@ class SettingsViewModel(
                     // так что дублирования не возникает.
                     appearance = AppearancePreferences(app),
                     shopping = ShoppingPreferences(app),
+                    cloud = container.cloudPreferences,
+                    onDeviceTranscriber = container.onDeviceTranscriber,
+                    onDeviceSpeechAvailable = container.onDeviceSpeechAvailable,
                 )
             }
         }

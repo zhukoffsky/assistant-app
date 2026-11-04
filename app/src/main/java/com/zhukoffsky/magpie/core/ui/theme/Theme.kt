@@ -34,7 +34,19 @@ internal val LightColors = lightColorScheme(
     surfaceVariant = LightBg,
     onSurfaceVariant = LightInk2,
     outline = LightInk3,
-    error = LightAccentPressed,
+    outlineVariant = LightOutlineVariant,
+    error = LightDanger,
+    onError = LightOnAccent,
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = DarkInk,
+    inversePrimary = DarkAccent,
+    // Третичные роли приложение само не берёт, но их берут готовые
+    // компоненты (переключатель AM/PM в пикере времени). Пустые, они
+    // приносили бы сиреневый — заливаем акцентом.
+    tertiary = LightAccent,
+    onTertiary = LightOnAccent,
+    tertiaryContainer = LightSurfaceContainerHigh,
+    onTertiaryContainer = LightInk,
     // Роли `surfaceContainer*` заполняются намеренно: именно их берут
     // диалоги, пикеры и меню Material 3. Оставленные пустыми, они падают на
     // базовую палитру Material и выпадают из тёплой гаммы.
@@ -61,7 +73,16 @@ internal val DarkColors = darkColorScheme(
     surfaceVariant = DarkBg,
     onSurfaceVariant = DarkInk2,
     outline = DarkInk3,
-    error = DarkAccentPressed,
+    outlineVariant = DarkOutlineVariant,
+    error = DarkDanger,
+    onError = DarkOnAccent,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = LightInk,
+    inversePrimary = LightAccentPressed,
+    tertiary = DarkAccent,
+    onTertiary = DarkOnAccent,
+    tertiaryContainer = DarkSurfaceContainerHigh,
+    onTertiaryContainer = DarkInk,
     // Роли `surfaceContainer*` заполняются намеренно: именно их берут
     // диалоги, пикеры и меню Material 3. Оставленные пустыми, они падают на
     // базовую палитру Material и выпадают из тёплой гаммы.

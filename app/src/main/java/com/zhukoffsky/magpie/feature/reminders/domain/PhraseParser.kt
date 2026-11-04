@@ -1,6 +1,8 @@
 package com.zhukoffsky.magpie.feature.reminders.domain
 
 import com.zhukoffsky.magpie.core.util.MagpieLog
+import com.zhukoffsky.magpie.core.llm.LLM_DEADLINE_MILLIS
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.ZonedDateTime
 
 /**
@@ -38,7 +40,9 @@ class HybridPhraseParser(
             return it
         }
 
-        llm?.parse(phrase, now)?.let {
+        // Тот же предел, что у покупок: зависшая модель не должна держать
+        // карточку дольше, чем стоит ждать время по умолчанию.
+        llm?.let { withTimeoutOrNull(LLM_DEADLINE_MILLIS) { it.parse(phrase, now) } }?.let {
             MagpieLog.i("parse: llm")
             return it
         }

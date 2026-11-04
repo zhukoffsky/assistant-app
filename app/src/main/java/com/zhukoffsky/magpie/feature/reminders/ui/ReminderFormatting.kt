@@ -9,6 +9,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import com.zhukoffsky.magpie.core.ui.appLocale
+import com.zhukoffsky.magpie.core.util.DateFormats
 
 /**
  * Подпись под заголовком напоминания: «12 авг, 09:00 · по вторникам».
@@ -41,7 +42,7 @@ fun dueHeadline(dueAt: ZonedDateTime): String {
 @Composable
 fun dueLabel(dueAt: ZonedDateTime?, repeat: RepeatRule?): String {
     val locale = appLocale()
-    val time = dueAt?.format(DateTimeFormatter.ofPattern("d MMM, HH:mm", locale))
+    val time = dueAt?.let { DateFormats.dateTime(it.toLocalDateTime(), locale, LocalDate.now(it.zone)) }
 
     val repeatLabel = when (repeat) {
         null -> null

@@ -24,6 +24,24 @@ internal val LightOk = Color(0xFF1E9E6A)
 internal val LightWarn = Color(0xFFC7791B)
 
 /*
+ * Красный — только для необратимого: удалить курс, отключить синхронизацию.
+ * Это не второй акцент, а сигнал «здесь можно потерять данные». Раньше роль
+ * `error` была залита тем же оранжевым, что и «Принял», и кнопка удаления
+ * выглядела так же безобидно, как «Отмена» рядом с ней.
+ */
+internal val LightDanger = Color(0xFFC8372D)
+
+/*
+ * Тонкие рамки (`outlineVariant`) — ими Material 3 обводит контурные кнопки.
+ * Пустая роль падала на базовую палитру: на тёплом фоне получалась холодная
+ * сиреневая рамка `#CAC4D0`. Та же дыра, что когда-то была у `surfaceContainer*`.
+ */
+internal val LightOutlineVariant = Color(0xFFE3D3CA)
+
+/* Подложка снекбара (`inverseSurface`) — тёмная, но тёплая, а не серо-синяя. */
+internal val LightInverseSurface = Color(0xFF3A2C26)
+
+/*
  * Подложка диалогов и меню.
  *
  * Material 3 берёт её из ролей `surfaceContainer*`, а не из `surface`. Не
@@ -47,6 +65,9 @@ internal val DarkAccentPressed = Color(0xFFFF6B35)
 internal val DarkOnAccent = Color(0xFF26150D)
 internal val DarkOk = Color(0xFF3DD598)
 internal val DarkWarn = Color(0xFFE7A74A)
+internal val DarkDanger = Color(0xFFFF7A6B)
+internal val DarkOutlineVariant = Color(0xFF4A3D38)
+internal val DarkInverseSurface = Color(0xFFF3E8E2)
 
 // В тёмной теме поднятие идёт в другую сторону — к светлому, но с тем же
 // тёплым подтоном, что и фон.
@@ -72,6 +93,15 @@ data class MagpieColors(
     /** Заливка стекла, когда размытия нет: плотнее, чтобы текст остался читаемым. */
     val glassOpaque: Color,
     val glassBorder: Color,
+    /**
+     * Мелкие элементы управления на стекле: плашки отсрочки, сегменты выбора.
+     *
+     * Своё, а не `glass`: в светлой теме стекло — белое на белой карточке, и
+     * плашки сливались с ней в простой текст. Здесь заливка и рамка тянутся
+     * к чернилам, а не к белому, — так элемент виден на любой подложке.
+     */
+    val control: Color,
+    val controlBorder: Color,
     /** Три пятна органического фона, снизу вверх по слоям. */
     val meshTopLeft: Color,
     val meshTopRight: Color,
@@ -88,6 +118,8 @@ internal val LightMagpieColors = MagpieColors(
     glass = Color.White.copy(alpha = 0.62f),
     glassOpaque = Color.White.copy(alpha = 0.86f),
     glassBorder = Color.White.copy(alpha = 0.85f),
+    control = LightInk.copy(alpha = 0.05f),
+    controlBorder = LightInk.copy(alpha = 0.14f),
     meshTopLeft = Color(0xFFFFC9A8).copy(alpha = 0.70f),
     meshTopRight = Color(0xFFFFB0AC).copy(alpha = 0.62f),
     meshBottom = Color(0xFFFFE1AE).copy(alpha = 0.75f),
@@ -103,6 +135,8 @@ internal val DarkMagpieColors = MagpieColors(
     glass = Color.White.copy(alpha = 0.085f),
     glassOpaque = Color.White.copy(alpha = 0.13f),
     glassBorder = Color.White.copy(alpha = 0.15f),
+    control = Color.White.copy(alpha = 0.085f),
+    controlBorder = Color.White.copy(alpha = 0.15f),
     // Заметно слабее, чем в HTML-макете: там пятна лежат на маленькой карточке
     // предпросмотра, а на экране телефона та же альфа даёт сплошную ржавчину
     // вместо свечения по углам.
