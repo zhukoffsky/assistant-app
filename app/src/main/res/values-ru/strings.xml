@@ -43,15 +43,13 @@
     <string name="med_start_date_help">Задаёт фазу цикла: первая доза приходится на этот день</string>
     <string name="med_invalid_input">Проверь цикл доз: целые числа миллиграммов через запятую.</string>
     <string name="med_save">Сохранить</string>
-    <string name="med_today_dose">Сегодня %1$d мг</string>
     <string name="med_no_dose_today">Курс ещё не начался</string>
     <string name="med_unit_mg">мг</string>
     <string name="med_status_pending">ещё не принято</string>
     <string name="med_status_taken">принято</string>
     <string name="med_status_skipped">пропущено</string>
     <string name="med_status_snoozed">отложено</string>
-    <string name="med_snooze">Отложить на</string>
-    <string name="med_snooze_minutes">%1$d мин</string>
+    <string name="med_snooze_minutes">+%1$d мин</string>
     <string name="med_history_title">История</string>
     <string name="med_mark_taken">Принял</string>
     <string name="med_edit_course">Изменить</string>
@@ -125,13 +123,6 @@
     <string name="widget_reminder_empty">Ничего не запланировано</string>
     <string name="widget_meds_description">Сегодняшний приём: лекарство, доза и время</string>
     <string name="widget_meds_empty">Курс не заведён</string>
-    <plurals name="widget_meds_more">
-        <item quantity="one">ещё %1$d не принят сегодня</item>
-        <item quantity="few">ещё %1$d не приняты сегодня</item>
-        <item quantity="many">ещё %1$d не принято сегодня</item>
-        <item quantity="other">ещё %1$d не принято сегодня</item>
-    </plurals>
-
     <!--
       Образец содержимого для превью в списке выбора виджетов. Именно
       образец, а не пустое состояние: в списке человек решает, зачем ему

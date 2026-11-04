@@ -50,10 +50,13 @@ import java.time.format.DateTimeFormatter
  * внимания, а виджет висит на экране весь день.
  *
  * **Курсов бывает несколько, а плитка одна — та, что требует руки.** Виджет
- * показывает ближайший неотмеченный приём дня, а остальные неотмеченные —
- * строкой «ещё N». Отмечены все — показывается последний по времени, уже
- * погасшим. Список всех курсов в ячейке 3×2 не помещается, а виджету нужно
- * ответить на один вопрос: «что выпить сейчас».
+ * показывает ближайший неотмеченный приём дня; отмечены все — последний по
+ * времени, уже погасшим. Список всех курсов в ячейке 3×2 не помещается, а
+ * виджету нужно ответить на один вопрос: «что выпить сейчас».
+ *
+ * Строки «ещё N не принято» здесь была и убрана: в ячейку она не влезала
+ * (на Pixel 8 от неё оставались верхушки букв под нижним краем), а следующий
+ * приём виджет и так покажет, как только отметят этот.
  *
  * Кнопок нет намеренно. Отметить приём можно из уведомления и с экрана, а
  * промахнуться по «Принял» на домашнем экране — значит соврать истории,
@@ -103,10 +106,6 @@ class MedWidget : GlanceAppWidget() {
                                 DateTimeFormatter.ofPattern("HH:mm", locale),
                             ),
                             status = strings.getString(dose.status.labelRes),
-                            more = doses
-                                .count { it !== dose && it.status != IntakeStatus.TAKEN }
-                                .takeIf { it > 0 }
-                                ?.let { strings.resources.getQuantityString(R.plurals.widget_meds_more, it, it) },
                         )
                     }
                 }
@@ -133,8 +132,6 @@ private fun DoseContent(
     unit: String,
     time: String,
     status: String,
-    /** «ещё N не принято» — когда кроме показанного есть другие неотмеченные. */
-    more: String?,
 ) {
     val taken = dose.status == IntakeStatus.TAKEN
 
@@ -170,14 +167,6 @@ private fun DoseContent(
                 ),
                 modifier = GlanceModifier.padding(top = 6.dp),
             )
-            if (more != null) {
-                Text(
-                    text = more,
-                    maxLines = 1,
-                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp),
-                    modifier = GlanceModifier.padding(top = 2.dp),
-                )
-            }
         }
     }
 }
