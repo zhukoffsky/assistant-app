@@ -13,17 +13,21 @@ class FakeMedDao : MedDao {
     private var nextCourseId = 1L
     private var nextIntakeId = 1L
 
-    override fun observeCourses(): Flow<List<MedCourseEntity>> = courses
+    private fun active(list: List<MedCourseEntity>) =
+        list.filter { it.isActive }.sortedWith(compareBy({ it.timeOfDay }, { it.id }))
 
-    override suspend fun activeCourse(): MedCourseEntity? = courses.value.firstOrNull { it.isActive }
+    override fun observeActiveCourses(): Flow<List<MedCourseEntity>> = courses.map(::active)
 
-    override fun observeActiveCourse(): Flow<MedCourseEntity?> =
-        courses.map { list -> list.firstOrNull { it.isActive } }
+    override suspend fun activeCourses(): List<MedCourseEntity> = active(courses.value)
+
+    override suspend fun activeCourse(id: Long): MedCourseEntity? =
+        courses.value.firstOrNull { it.id == id && it.isActive }
 
     override suspend fun upsertCourse(course: MedCourseEntity): Long {
         val id = if (course.id == 0L) nextCourseId++ else course.id
         courses.value = courses.value.filterNot { it.id == id } + course.copy(id = id)
-        return id
+        // Как Room: при обновлении существующей строки `@Upsert` отдаёт -1.
+        return if (course.id == 0L) id else -1
     }
 
     override suspend fun deleteCourse(course: MedCourseEntity) {
@@ -37,10 +41,10 @@ class FakeMedDao : MedDao {
                 .sortedByDescending { it.scheduledAt }
         }
 
-    override suspend fun snoozedIntake(): MedIntakeEntity? =
+    override suspend fun snoozedIntakes(): List<MedIntakeEntity> =
         intakes.value
             .filter { it.status == IntakeStatus.SNOOZED && it.snoozedUntil != null }
-            .maxByOrNull { it.snoozedUntil!! }
+            .sortedByDescending { it.snoozedUntil!! }
 
     override suspend fun intakeAt(courseId: Long, scheduledAt: Instant): MedIntakeEntity? =
         intakes.value.firstOrNull { it.courseId == courseId && it.scheduledAt == scheduledAt }

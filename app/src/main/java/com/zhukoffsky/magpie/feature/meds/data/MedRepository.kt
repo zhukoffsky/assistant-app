@@ -12,6 +12,7 @@ import com.zhukoffsky.magpie.feature.meds.domain.MedIntake
 import com.zhukoffsky.magpie.feature.meds.domain.TodayDose
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -34,32 +35,41 @@ class MedRepository(
     private val onChanged: suspend () -> Unit = {},
 ) {
 
-    fun observeCourse(): Flow<MedCourse?> =
-        dao.observeActiveCourse().map { it?.toDomain() }
+    /** Действующие курсы по времени приёма — в том порядке, в каком их пьют. */
+    fun observeCourses(): Flow<List<MedCourse>> =
+        dao.observeActiveCourses().map { list -> list.map { it.toDomain() } }
 
     /**
-     * Сегодняшний приём одним потоком — то, что показывает виджет.
+     * Сегодняшние приёмы всех курсов одним потоком — то, что показывает
+     * виджет.
      *
      * Доза считается из даты, а не берётся из записи: записи может не быть
      * вовсе, пока человек не отреагировал. Это то же архитектурное
      * требование, что и везде в таблетках, — счётчик «следующая доза»
-     * разъезжается при первом же пропуске.
+     * разъезжается при первом же пропуске. Курс, который ещё не начался,
+     * в список не попадает: сегодня у него дозы нет.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun observeToday(): Flow<TodayDose?> = observeCourse().flatMapLatest { course ->
-        if (course == null) {
-            flowOf(null)
-        } else {
-            val today = clock.instant().atZone(clock.zone).toLocalDate()
-            observeIntakes(course.id, startOfDay(today)).map { intakes ->
-                val dose = DoseCycle.doseFor(course, today) ?: return@map null
-                TodayDose(
-                    course = course,
-                    doseMg = intakes.firstOrNull()?.doseMg ?: dose,
-                    status = intakes.firstOrNull()?.status ?: IntakeStatus.PENDING,
-                )
-            }
-        }
+    fun observeToday(): Flow<List<TodayDose>> = observeCourses().flatMapLatest { courses ->
+        if (courses.isEmpty()) return@flatMapLatest flowOf(emptyList())
+
+        val today = clock.instant().atZone(clock.zone).toLocalDate()
+        val since = startOfDay(today)
+        combine(
+            courses.map { course ->
+                observeIntakes(course.id, since).map { intakes -> todayDose(course, today, intakes) }
+            },
+        ) { doses -> doses.filterNotNull() }
+    }
+
+    private fun todayDose(course: MedCourse, today: LocalDate, intakes: List<MedIntake>): TodayDose? {
+        val dose = DoseCycle.doseFor(course, today) ?: return null
+        val intake = intakes.firstOrNull { it.scheduledAt.atZone(clock.zone).toLocalDate() == today }
+        return TodayDose(
+            course = course,
+            doseMg = intake?.doseMg ?: dose,
+            status = intake?.status ?: IntakeStatus.PENDING,
+        )
     }
 
     private fun startOfDay(date: LocalDate): Instant =
@@ -68,19 +78,26 @@ class MedRepository(
     fun observeIntakes(courseId: Long, since: Instant): Flow<List<MedIntake>> =
         dao.observeIntakes(courseId, since).map { list -> list.map { it.toDomain() } }
 
-    suspend fun activeCourse(): MedCourse? = dao.activeCourse()?.toDomain()
+    suspend fun courses(): List<MedCourse> = dao.activeCourses().map { it.toDomain() }
 
+    suspend fun course(id: Long): MedCourse? = dao.activeCourse(id)?.toDomain()
+
+    /**
+     * Создать курс ([id] = 0) или изменить существующий.
+     *
+     * @return id сохранённого курса; null, если сохранять нечего.
+     */
     suspend fun saveCourse(
         id: Long,
         name: String,
         dosesMg: List<Int>,
         timeOfDay: LocalTime,
         startDate: LocalDate,
-    ): Boolean {
+    ): Long? {
         val cleanName = name.trim()
-        if (cleanName.isEmpty() || dosesMg.isEmpty()) return false
+        if (cleanName.isEmpty() || dosesMg.isEmpty()) return null
 
-        dao.upsertCourse(
+        val rowId = dao.upsertCourse(
             MedCourseEntity(
                 id = id,
                 name = cleanName,
@@ -91,13 +108,18 @@ class MedRepository(
                 createdAt = clock.instant(),
             ),
         )
-        scheduleNext()
+        // `@Upsert` отдаёт номер строки только при вставке, при обновлении — -1.
+        val savedId = if (id == 0L) rowId else id
+
+        // Будильник переставляется сразу: у правленого курса могло смениться
+        // время, а прежний будильник иначе сработал бы по старому.
+        scheduleNext(savedId)
         onChanged()
-        return true
+        return savedId
     }
 
     suspend fun deleteCourse(course: MedCourse) {
-        scheduler.cancelAll()
+        scheduler.cancel(course.id)
         dao.deleteCourse(
             MedCourseEntity(
                 id = course.id,
@@ -113,34 +135,35 @@ class MedRepository(
     }
 
     /**
-     * Ставит будильник на ближайший приём. Идемпотентно.
+     * Ставит будильник на ближайший приём курса. Идемпотентно.
      *
      * @param notBefore приём, который уже обработан. Отсчёт ведётся строго
      * от него, а не от текущего времени: неточный будильник может сработать
      * на несколько секунд раньше срока, и отсчёт «от сейчас» перевзвёл бы
      * его на тот же момент — получился бы цикл мгновенных повторов.
      */
-    suspend fun scheduleNext(notBefore: Instant? = null) {
-        val course = dao.activeCourse()?.toDomain()
+    suspend fun scheduleNext(courseId: Long, notBefore: Instant? = null) {
+        val course = course(courseId)
         if (course == null) {
-            scheduler.cancelAll()
+            scheduler.cancel(courseId)
             return
         }
 
         val reference = maxOf(notBefore ?: Instant.MIN, clock.instant())
         val next = DoseCycle.nextIntake(course, reference.atZone(clock.zone))
-        scheduler.scheduleDaily(next.toInstant())
+        scheduler.scheduleDaily(course.id, next.toInstant())
     }
 
     /**
-     * Сработал будильник: заводим запись приёма (если её ещё нет) и сразу
-     * планируем следующий день, чтобы цепочка не оборвалась.
+     * Сработал будильник курса: заводим запись приёма (если её ещё нет) и
+     * сразу планируем следующий день, чтобы цепочка не оборвалась.
      *
      * @param scheduledAt время приёма; null для ежедневного будильника —
      * тогда берётся приём на сегодня.
      */
-    suspend fun onAlarm(scheduledAt: Instant?): Pair<MedCourse, MedIntake>? {
-        val course = dao.activeCourse()?.toDomain() ?: return null
+    suspend fun onAlarm(courseId: Long, scheduledAt: Instant?): Pair<MedCourse, MedIntake>? {
+        // Курс удалили, а будильник успел сработать: показывать нечего.
+        val course = course(courseId) ?: return null
         val today = clock.instant().atZone(clock.zone).toLocalDate()
 
         val plannedAt = scheduledAt ?: DoseCycle.scheduledAt(course, today, clock.zone)
@@ -166,7 +189,7 @@ class MedRepository(
                 dao.intakeAt(course.id, plannedAt)?.toDomain() ?: return null
             }
 
-        scheduleNext(notBefore = plannedAt)
+        scheduleNext(course.id, notBefore = plannedAt)
         onChanged()
 
         /*
@@ -183,8 +206,8 @@ class MedRepository(
         return course to intake
     }
 
-    suspend fun markTaken(scheduledAt: Instant) {
-        val course = dao.activeCourse()?.toDomain() ?: return
+    suspend fun markTaken(courseId: Long, scheduledAt: Instant) {
+        val course = course(courseId) ?: return
         val date = scheduledAt.atZone(clock.zone).toLocalDate()
         val dose = DoseCycle.doseFor(course, date) ?: return
         val existing = dao.intakeAt(course.id, scheduledAt)
@@ -206,13 +229,13 @@ class MedRepository(
     }
 
     /** Отметка приёма за прошедший день — «выпил, но забыл нажать». */
-    suspend fun markTakenOn(date: LocalDate) {
-        val course = dao.activeCourse()?.toDomain() ?: return
-        markTaken(DoseCycle.scheduledAt(course, date, clock.zone))
+    suspend fun markTakenOn(courseId: Long, date: LocalDate) {
+        val course = course(courseId) ?: return
+        markTaken(course.id, DoseCycle.scheduledAt(course, date, clock.zone))
     }
 
-    suspend fun snooze(scheduledAt: Instant, delay: Duration) {
-        val course = dao.activeCourse()?.toDomain() ?: return
+    suspend fun snooze(courseId: Long, scheduledAt: Instant, delay: Duration) {
+        val course = course(courseId) ?: return
         val existing = dao.intakeAt(course.id, scheduledAt)
         val dose = DoseCycle.doseFor(course, scheduledAt.atZone(clock.zone).toLocalDate()) ?: return
 
@@ -232,12 +255,13 @@ class MedRepository(
             ),
         )
 
-        scheduler.scheduleSnooze(at, scheduledAt)
+        scheduler.scheduleSnooze(course.id, at, scheduledAt)
         onChanged()
     }
 
     /**
-     * Восстановить будильники после перезагрузки: ежедневный и отсрочку.
+     * Восстановить будильники всех курсов после перезагрузки: ежедневные и
+     * отсрочки.
      *
      * Отдельный метод, а не `scheduleNext`: тот зовётся из каждой отметки
      * приёма, и восстановление отсрочки в нём воскрешало бы уже отработавшую.
@@ -248,15 +272,27 @@ class MedRepository(
      * она осталась в истории со своим статусом.
      */
     suspend fun rescheduleAll() {
-        scheduleNext()
+        scheduler.cancelLegacy()
 
-        val snoozed = dao.snoozedIntake() ?: return
-        val at = snoozed.snoozedUntil ?: return
+        val courses = courses()
+        courses.forEach { scheduleNext(it.id) }
 
-        if (at.isAfter(clock.instant())) {
-            scheduler.scheduleSnooze(at, snoozed.scheduledAt)
-        } else {
-            dao.upsertIntake(snoozed.copy(snoozedUntil = null))
+        val courseIds = courses.map { it.id }.toSet()
+        val snoozed = dao.snoozedIntakes()
+        // Действующая отсрочка курса — самая поздняя, остальные отслужили.
+        val current = snoozed
+            .groupBy { it.courseId }
+            .mapValues { (_, list) -> list.maxBy { it.snoozedUntil!! } }
+
+        snoozed.forEach { intake ->
+            val at = intake.snoozedUntil ?: return@forEach
+            val isCurrent = current[intake.courseId]?.id == intake.id
+
+            if (isCurrent && intake.courseId in courseIds && at.isAfter(clock.instant())) {
+                scheduler.scheduleSnooze(intake.courseId, at, intake.scheduledAt)
+            } else {
+                dao.upsertIntake(intake.copy(snoozedUntil = null))
+            }
         }
     }
 

@@ -97,14 +97,21 @@ interface ReminderDao {
 @Dao
 interface MedDao {
 
-    @Query("SELECT * FROM med_courses ORDER BY isActive DESC, id ASC")
-    fun observeCourses(): Flow<List<MedCourseEntity>>
+    /**
+     * Все действующие курсы, по времени приёма.
+     *
+     * Курсов может быть несколько — у каждого своё лекарство, своё время и
+     * свой цикл доз. Порядок по времени — порядок, в котором человек их
+     * пьёт за день.
+     */
+    @Query("SELECT * FROM med_courses WHERE isActive = 1 ORDER BY timeOfDay ASC, id ASC")
+    fun observeActiveCourses(): Flow<List<MedCourseEntity>>
 
-    @Query("SELECT * FROM med_courses WHERE isActive = 1 LIMIT 1")
-    suspend fun activeCourse(): MedCourseEntity?
+    @Query("SELECT * FROM med_courses WHERE isActive = 1 ORDER BY timeOfDay ASC, id ASC")
+    suspend fun activeCourses(): List<MedCourseEntity>
 
-    @Query("SELECT * FROM med_courses WHERE isActive = 1 LIMIT 1")
-    fun observeActiveCourse(): Flow<MedCourseEntity?>
+    @Query("SELECT * FROM med_courses WHERE id = :id AND isActive = 1")
+    suspend fun activeCourse(id: Long): MedCourseEntity?
 
     @Upsert
     suspend fun upsertCourse(course: MedCourseEntity): Long
@@ -125,20 +132,21 @@ interface MedDao {
     suspend fun intakeAt(courseId: Long, scheduledAt: Instant): MedIntakeEntity?
 
     /**
-     * Приём с невыполненной отсрочкой — тот, чей будильник надо вернуть
+     * Приёмы с невыполненной отсрочкой — те, чьи будильники надо вернуть
      * после перезагрузки.
      *
-     * Один: приём в сутках один, а отсрочка живёт минуты. Если их всё же
-     * окажется несколько, берётся самая поздняя — она и есть действующая.
+     * По одному на курс: приём в сутках один, а отсрочка живёт минуты.
+     * Если у курса их всё же окажется несколько, действующая — самая
+     * поздняя; выбирает её репозиторий.
      */
     @Query(
         """
         SELECT * FROM med_intakes
         WHERE status = 'SNOOZED' AND snoozedUntil IS NOT NULL
-        ORDER BY snoozedUntil DESC LIMIT 1
+        ORDER BY snoozedUntil DESC
         """,
     )
-    suspend fun snoozedIntake(): MedIntakeEntity?
+    suspend fun snoozedIntakes(): List<MedIntakeEntity>
 
     @Upsert
     suspend fun upsertIntake(intake: MedIntakeEntity): Long

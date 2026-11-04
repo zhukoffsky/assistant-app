@@ -1,9 +1,10 @@
 package com.zhukoffsky.magpie.feature.meds.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,29 +18,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
 import com.zhukoffsky.magpie.core.ui.appLocale
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
@@ -55,45 +58,88 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+/**
+ * Вкладка таблеток: список курсов, карточка одного курса, форма.
+ *
+ * **Курсов может быть несколько** — у каждого своё лекарство, своё время и
+ * свой цикл доз. Список показывает сегодняшний приём каждого, а история,
+ * правка и удаление живут в карточке курса: на общем экране тридцать строк
+ * истории на каждое лекарство превратили бы список в простыню.
+ *
+ * Навигация внутри вкладки — два сохраняемых состояния, а не маршруты
+ * `NavHost`: экранов три, и все они об одном и том же наборе данных.
+ */
 @Composable
 fun MedsScreen(
     viewModel: MedsViewModel = viewModel(factory = MedsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var editing by remember { mutableStateOf(false) }
+
+    // Открытая карточка курса; null — список.
+    var openedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Открытая форма: NEW_COURSE — новый курс, иначе id правленого; null — формы нет.
+    var formId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    val opened = openedId?.let(state::course)
+    val hasCourses = state.courses.isNotEmpty()
+
+    BackHandler(enabled = formId != null && hasCourses) { formId = null }
+    BackHandler(enabled = formId == null && opened != null) { openedId = null }
 
     when {
         state.isLoading -> Unit
 
-        state.course == null || editing -> CourseForm(
-            course = state.course,
+        !hasCourses || formId != null -> CourseForm(
+            course = formId?.let(state::course)?.course,
+            canCancel = hasCourses,
+            onCancel = { formId = null },
             onSave = { name, doses, time, date ->
-                val saved = viewModel.onSaveCourse(name, doses, time, date)
-                if (saved) editing = false
+                // Курс могли удалить, пока форма была открыта: тогда это новый.
+                val id = formId?.takeIf { state.course(it) != null } ?: NEW_COURSE
+                val saved = viewModel.onSaveCourse(id, name, doses, time, date)
+                if (saved) formId = null
                 saved
             },
         )
 
-        else -> CourseContent(
-            state = state,
+        opened != null -> CourseDetail(
+            item = opened,
+            onBack = { openedId = null },
+            onTaken = { viewModel.onTakenToday(opened.course.id) },
+            onSnooze = { viewModel.onSnooze(opened.course.id, it) },
+            onTakenOn = { viewModel.onTakenOn(opened.course.id, it) },
+            onEdit = { formId = opened.course.id },
+            onDelete = {
+                viewModel.onDeleteCourse(opened.course.id)
+                openedId = null
+            },
+        )
+
+        else -> CourseList(
+            courses = state.courses,
             onTaken = viewModel::onTakenToday,
             onSnooze = viewModel::onSnooze,
-            onTakenOn = viewModel::onTakenOn,
-            onEdit = { editing = true },
-            onDelete = viewModel::onDeleteCourse,
+            onOpen = { openedId = it },
+            onAdd = { formId = NEW_COURSE },
         )
     }
 }
 
+private const val NEW_COURSE = 0L
+
 @Composable
 private fun CourseForm(
     course: MedCourse?,
+    canCancel: Boolean,
+    onCancel: () -> Unit,
     onSave: (name: String, doses: String, time: LocalTime, startDate: LocalDate) -> Boolean,
 ) {
-    var name by remember { mutableStateOf(course?.name.orEmpty()) }
-    var doses by remember { mutableStateOf(course?.dosesMg?.joinToString(", ").orEmpty()) }
-    var time by remember { mutableStateOf(course?.timeOfDay ?: LocalTime.of(9, 0)) }
-    var startDate by remember { mutableStateOf(course?.startDate ?: LocalDate.now()) }
+    // Ключ — курс: иначе форма нового курса, открытая после правки другого,
+    // унаследовала бы его поля.
+    var name by remember(course?.id) { mutableStateOf(course?.name.orEmpty()) }
+    var doses by remember(course?.id) { mutableStateOf(course?.dosesMg?.joinToString(", ").orEmpty()) }
+    var time by remember(course?.id) { mutableStateOf(course?.timeOfDay ?: LocalTime.of(9, 0)) }
+    var startDate by remember(course?.id) { mutableStateOf(course?.startDate ?: LocalDate.now()) }
     var showError by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -128,7 +174,7 @@ private fun CourseForm(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = stringResource(R.string.med_setup_title),
+            text = stringResource(if (course == null) R.string.med_new_course_title else R.string.med_setup_title),
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -190,26 +236,96 @@ private fun CourseForm(
         ) {
             Text(stringResource(R.string.med_save))
         }
+
+        if (canCancel) {
+            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.med_cancel))
+            }
+        }
     }
 }
 
 @Composable
-private fun CourseContent(
-    state: MedsUiState,
+private fun CourseList(
+    courses: List<CourseUi>,
+    onTaken: (Long) -> Unit,
+    onSnooze: (Long, Long) -> Unit,
+    onOpen: (Long) -> Unit,
+    onAdd: () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 4.dp),
+    ) {
+        items(items = courses, key = { it.course.id }) { item ->
+            TodayCard(
+                item = item,
+                onTaken = { onTaken(item.course.id) },
+                onSnooze = { onSnooze(item.course.id, it) },
+                onOpen = { onOpen(item.course.id) },
+            )
+        }
+
+        item(key = "add") {
+            OutlinedButton(
+                onClick = onAdd,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                Text(stringResource(R.string.med_add_course))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CourseDetail(
+    item: CourseUi,
+    onBack: () -> Unit,
     onTaken: () -> Unit,
     onSnooze: (Long) -> Unit,
     onTakenOn: (LocalDate) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val course = state.course ?: return
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    // История удаляется вместе с курсом, и вернуть её нечем — поэтому
+    // спрашиваем. Раньше курс был один, и удаление сразу открывало форму
+    // нового; теперь рядом другие курсы, и промах по кнопке дороже.
+    if (confirmDelete) {
+        MagpieAlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.med_delete_confirm_title, item.course.name)) },
+            text = { Text(stringResource(R.string.med_delete_confirm_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                ) { Text(stringResource(R.string.med_delete_course)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.med_cancel)) }
+            },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.padding(start = 6.dp, top = 4.dp),
+        ) {
+            Text(stringResource(R.string.med_all_courses))
+        }
+
         TodayCard(
-            course = course,
-            state = state,
+            item = item,
             onTaken = onTaken,
             onSnooze = onSnooze,
+            onOpen = null,
         )
 
         Row(
@@ -219,7 +335,7 @@ private fun CourseContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TextButton(onClick = onEdit) { Text(stringResource(R.string.med_edit_course)) }
-            TextButton(onClick = onDelete) { Text(stringResource(R.string.med_delete_course)) }
+            TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.med_delete_course)) }
         }
 
         Text(
@@ -235,7 +351,7 @@ private fun CourseContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             itemsIndexed(
-                items = state.history,
+                items = item.history,
                 key = { _, day -> day.date.toEpochDay() },
             ) { index, day ->
                 HistoryRow(day = day, index = index, onTakenOn = onTakenOn)
@@ -244,90 +360,153 @@ private fun CourseContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/**
+ * Сегодняшний приём одного курса.
+ *
+ * **Карточка обязана быть низкой: курсов несколько, и в экран должно
+ * помещаться три-четыре.** Первая версия была ~355dp — двух с небольшим
+ * хватало на весь экран. Отсюда раскладка в две строки действий: название и
+ * доза в шапке, ниже «Принял» и отсрочки одним рядом.
+ *
+ * **Название — заголовок карточки, а не подпись.** Пока курс был один, его
+ * имя ничего не различало и ушло в мелкую серую строку над дозой. Теперь
+ * именно по нему человек ищет нужное лекарство среди нескольких.
+ */
 @Composable
 private fun TodayCard(
-    course: MedCourse,
-    state: MedsUiState,
+    item: CourseUi,
     onTaken: () -> Unit,
     onSnooze: (Long) -> Unit,
+    /** Открыть карточку курса; null — карточка уже открыта. */
+    onOpen: (() -> Unit)?,
 ) {
+    val course = item.course
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         shape = RoundedCornerShape(MagpieRadius.lg),
         strong = true,
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Шапка целиком — вход в карточку курса: отдельная ссылка
+            // «История и настройки» стоила строки на каждом курсе.
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = course.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MagpieTheme.colors.ink2,
-                )
-                Text(
-                    text = statusLabel(state.todayStatus),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (state.todayStatus == IntakeStatus.TAKEN) {
-                        MagpieTheme.colors.ok
-                    } else {
-                        MagpieTheme.colors.ink2
-                    },
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = course.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MagpieTheme.colors.ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(modifier = Modifier.padding(top = 2.dp)) {
+                        Text(
+                            text = course.timeOfDay.format(DateTimeFormatter.ofPattern("HH:mm")) + " · ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MagpieTheme.colors.ink2,
+                        )
+                        Text(
+                            text = if (item.todayDoseMg == null) {
+                                stringResource(R.string.med_no_dose_today)
+                            } else {
+                                statusLabel(item.todayStatus)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (item.todayStatus == IntakeStatus.TAKEN) {
+                                MagpieTheme.colors.ok
+                            } else {
+                                MagpieTheme.colors.ink2
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                // Доза по-прежнему самым крупным кеглем шкалы: её человек
+                // проверяет, прежде чем пить, а у цикла она меняется по дням.
+                item.todayDoseMg?.let { dose ->
+                    Text(
+                        text = "$dose ${stringResource(R.string.med_unit_mg)}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MagpieTheme.colors.ink,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                }
+
+                if (onOpen != null) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron_right),
+                        contentDescription = stringResource(R.string.med_open_course),
+                        tint = MagpieTheme.colors.ink2,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
             }
 
-            // Доза — главный объект экрана, поэтому набрана самым крупным
-            // кеглем шкалы, а название курса ушло в подпись над ней.
-            Text(
-                text = state.todayDoseMg
-                    ?.let { stringResource(R.string.med_today_dose, it) }
-                    ?: stringResource(R.string.med_no_dose_today),
-                style = MaterialTheme.typography.displaySmall,
-                color = MagpieTheme.colors.ink,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-
-            if (state.todayStatus != IntakeStatus.TAKEN && state.todayDoseMg != null) {
+            if (item.todayStatus != IntakeStatus.TAKEN && item.todayDoseMg != null) {
                 Button(
                     onClick = onTaken,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp)
-                        .height(52.dp),
+                        .padding(top = 12.dp)
+                        .height(48.dp),
                     shape = RoundedCornerShape(MagpieRadius.md),
                 ) {
                     Text(stringResource(R.string.med_action_taken))
                 }
 
-                Text(
-                    text = stringResource(R.string.med_snooze),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MagpieTheme.colors.ink2,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Отсрочки — одним рядом равной ширины. Подписи «Отложить на»
+                // больше нет: «+15 мин» читается само, так же подписаны
+                // кнопки уведомления.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     MedsViewModel.SNOOZE_OPTIONS.forEach { minutes ->
-                        AssistChip(
+                        SnoozeChip(
+                            minutes = minutes,
                             onClick = { onSnooze(minutes) },
-                            shape = RoundedCornerShape(MagpieRadius.sm),
-                            label = {
-                                Text(
-                                    text = stringResource(R.string.med_snooze_minutes, minutes),
-                                    color = MagpieTheme.colors.ink,
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MagpieTheme.colors.glass,
-                            ),
-                            border = BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Своя плашка вместо `AssistChip`: у того поля по 8dp с каждой стороны и
+ * ширина по содержимому, и пять штук в ряд не помещались — пятая уезжала на
+ * вторую строку. Здесь ширину делит ряд, а поля минимальны.
+ */
+@Composable
+private fun SnoozeChip(minutes: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(36.dp),
+        shape = RoundedCornerShape(MagpieRadius.sm),
+        color = MagpieTheme.colors.glass,
+        border = BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(R.string.med_snooze_minutes, minutes),
+                style = MaterialTheme.typography.labelMedium,
+                color = MagpieTheme.colors.ink,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }

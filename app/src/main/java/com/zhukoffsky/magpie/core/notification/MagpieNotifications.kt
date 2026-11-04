@@ -27,7 +27,14 @@ object MagpieNotifications {
     const val CHANNEL_REMINDERS = "reminders"
     const val CHANNEL_MEDS = "meds"
 
-    private const val DOSE_NOTIFICATION_ID = 1
+    /**
+     * Уведомления о приёме — по одному на курс, под общим тегом.
+     *
+     * Номер уведомления — id курса, а тег разводит их с напоминаниями,
+     * у которых номера тоже из БД. Прежде уведомление о дозе было одно на
+     * всё приложение и стояло на номере 1 без тега.
+     */
+    private const val DOSE_TAG = "dose"
 
     /**
      * Идентификаторы уведомлений о напоминаниях — это id из БД, и первое же
@@ -66,8 +73,9 @@ object MagpieNotifications {
     /**
      * Уведомление о приёме лекарства.
      *
-     * Идентификатор один на всё приложение: активный приём всегда один,
-     * и старое уведомление должно замещаться, а не копиться.
+     * У каждого курса своё уведомление: два лекарства в одно время — это два
+     * отдельных действия, и «Принял» у одного не должно закрывать другое.
+     * Повторное уведомление того же курса замещает прежнее, а не копится.
      *
      * Приостановка — из-за языка: он лежит в DataStore, а читать его здесь, а
      * не в получателе, надёжнее. Получателей два, и второй легко забыть.
@@ -80,7 +88,7 @@ object MagpieNotifications {
             MagpieLog.w("notify: dose suppressed, no POST_NOTIFICATIONS")
             return
         }
-        MagpieLog.i("notify: dose=${intake.doseMg}mg")
+        MagpieLog.i("notify: course=${course.id} dose=${intake.doseMg}mg")
 
         val strings = context.forSelectedLanguage()
 
@@ -95,25 +103,25 @@ object MagpieNotifications {
             .addAction(
                 R.drawable.ic_notification,
                 strings.getString(R.string.med_action_taken),
-                MedActionReceiver.takenIntent(context, intake.scheduledAt),
+                MedActionReceiver.takenIntent(context, course.id, intake.scheduledAt),
             )
             .addAction(
                 R.drawable.ic_notification,
                 strings.getString(R.string.med_action_snooze_15),
-                MedActionReceiver.snoozeIntent(context, intake.scheduledAt, minutes = 15),
+                MedActionReceiver.snoozeIntent(context, course.id, intake.scheduledAt, minutes = 15),
             )
             .addAction(
                 R.drawable.ic_notification,
                 strings.getString(R.string.med_action_snooze_60),
-                MedActionReceiver.snoozeIntent(context, intake.scheduledAt, minutes = 60),
+                MedActionReceiver.snoozeIntent(context, course.id, intake.scheduledAt, minutes = 60),
             )
             .build()
 
-        NotificationManagerCompat.from(context).notify(DOSE_NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(context).notify(DOSE_TAG, course.id.toInt(), notification)
     }
 
-    fun cancelDose(context: Context) {
-        NotificationManagerCompat.from(context).cancel(DOSE_NOTIFICATION_ID)
+    fun cancelDose(context: Context, courseId: Long) {
+        NotificationManagerCompat.from(context).cancel(DOSE_TAG, courseId.toInt())
     }
 
     // Разрешение проверяет `canPost` строкой ниже, но lint не прослеживает

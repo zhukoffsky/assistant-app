@@ -49,6 +49,15 @@ import java.time.format.DateTimeFormatter
  * погасло — принято. Гореть после отметки незачем: сделанное не требует
  * внимания, а виджет висит на экране весь день.
  *
+ * **Курсов бывает несколько, а плитка одна — та, что требует руки.** Виджет
+ * показывает ближайший неотмеченный приём дня; отмечены все — последний по
+ * времени, уже погасшим. Список всех курсов в ячейке 3×2 не помещается, а
+ * виджету нужно ответить на один вопрос: «что выпить сейчас».
+ *
+ * Строки «ещё N не принято» здесь была и убрана: в ячейку она не влезала
+ * (на Pixel 8 от неё оставались верхушки букв под нижним краем), а следующий
+ * приём виджет и так покажет, как только отметят этот.
+ *
  * Кнопок нет намеренно. Отметить приём можно из уведомления и с экрана, а
  * промахнуться по «Принял» на домашнем экране — значит соврать истории,
  * которую потом нечем поправить, кроме отметки задним числом.
@@ -67,7 +76,7 @@ class MedWidget : GlanceAppWidget() {
         val locale = strings.resources.configuration.locales[0]
 
         provideContent {
-            val today by repository.observeToday().collectAsState(initial = initial)
+            val doses by repository.observeToday().collectAsState(initial = initial)
 
             GlanceTheme(colors = MagpieGlanceColors) {
                 Box(
@@ -82,7 +91,7 @@ class MedWidget : GlanceAppWidget() {
                         .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    val dose = today
+                    val dose = focusDose(doses)
                     if (dose == null) {
                         Text(
                             text = strings.getString(R.string.widget_meds_empty),
@@ -104,6 +113,13 @@ class MedWidget : GlanceAppWidget() {
         }
     }
 }
+
+/**
+ * Приём, которому отдана плитка: первый по времени неотмеченный, а если
+ * отмечены все — последний. Список уже упорядочен по времени приёма.
+ */
+internal fun focusDose(doses: List<TodayDose>): TodayDose? =
+    doses.firstOrNull { it.status != IntakeStatus.TAKEN } ?: doses.lastOrNull()
 
 class MedWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MedWidget()

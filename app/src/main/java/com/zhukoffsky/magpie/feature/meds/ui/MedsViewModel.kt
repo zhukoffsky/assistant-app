@@ -11,12 +11,14 @@ import com.zhukoffsky.magpie.feature.meds.data.MedRepository
 import com.zhukoffsky.magpie.feature.meds.domain.DoseCycle
 import com.zhukoffsky.magpie.feature.meds.domain.DoseDay
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
+import com.zhukoffsky.magpie.feature.meds.domain.MedIntake
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -24,13 +26,20 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 
-data class MedsUiState(
-    val course: MedCourse? = null,
-    val todayDoseMg: Int? = null,
-    val todayStatus: IntakeStatus = IntakeStatus.PENDING,
-    val history: List<DoseDay> = emptyList(),
-    val isLoading: Boolean = true,
+/** Курс на экране: сам курс, сегодняшний приём и история. */
+data class CourseUi(
+    val course: MedCourse,
+    val todayDoseMg: Int?,
+    val todayStatus: IntakeStatus,
+    val history: List<DoseDay>,
 )
+
+data class MedsUiState(
+    val courses: List<CourseUi> = emptyList(),
+    val isLoading: Boolean = true,
+) {
+    fun course(id: Long): CourseUi? = courses.firstOrNull { it.course.id == id }
+}
 
 class MedsViewModel(
     private val repository: MedRepository,
@@ -38,28 +47,17 @@ class MedsViewModel(
 ) : ViewModel() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<MedsUiState> = repository.observeCourse()
-        .flatMapLatest { course ->
-            if (course == null) {
+    val uiState: StateFlow<MedsUiState> = repository.observeCourses()
+        .flatMapLatest { courses ->
+            if (courses.isEmpty()) {
                 flowOf(MedsUiState(isLoading = false))
             } else {
                 val since = clock.instant().minus(Duration.ofDays(HISTORY_DAYS))
                 combine(
-                    flowOf(course),
-                    repository.observeIntakes(course.id, since),
-                ) { activeCourse, intakes ->
-                    val history = repository.historyFor(activeCourse, intakes, HISTORY_DAYS)
-                    val today = clock.instant().atZone(clock.zone).toLocalDate()
-
-                    MedsUiState(
-                        course = activeCourse,
-                        todayDoseMg = DoseCycle.doseFor(activeCourse, today),
-                        todayStatus = history.firstOrNull { it.date == today }?.status
-                            ?: IntakeStatus.PENDING,
-                        history = history,
-                        isLoading = false,
-                    )
-                }
+                    courses.map { course ->
+                        repository.observeIntakes(course.id, since).map { intakes -> courseUi(course, intakes) }
+                    },
+                ) { list -> MedsUiState(courses = list.toList(), isLoading = false) }
             }
         }
         .stateIn(
@@ -68,17 +66,37 @@ class MedsViewModel(
             initialValue = MedsUiState(),
         )
 
+    private fun courseUi(course: MedCourse, intakes: List<MedIntake>): CourseUi {
+        val history = repository.historyFor(course, intakes, HISTORY_DAYS)
+        val today = today()
+
+        return CourseUi(
+            course = course,
+            todayDoseMg = DoseCycle.doseFor(course, today),
+            todayStatus = history.firstOrNull { it.date == today }?.status ?: IntakeStatus.PENDING,
+            history = history,
+        )
+    }
+
+    private fun today(): LocalDate = clock.instant().atZone(clock.zone).toLocalDate()
+
+    /**
+     * @param id 0 — новый курс.
+     * @return false, если ввод не разобрался; форма тогда остаётся открытой.
+     */
     fun onSaveCourse(
+        id: Long,
         name: String,
         doses: String,
         timeOfDay: LocalTime,
         startDate: LocalDate,
     ): Boolean {
         val parsedDoses = parseDoses(doses) ?: return false
+        if (name.isBlank()) return false
 
         viewModelScope.launch {
             repository.saveCourse(
-                id = uiState.value.course?.id ?: 0,
+                id = id,
                 name = name,
                 dosesMg = parsedDoses,
                 timeOfDay = timeOfDay,
@@ -88,35 +106,30 @@ class MedsViewModel(
         return true
     }
 
-    fun onTakenToday() {
-        val course = uiState.value.course ?: return
+    fun onTakenToday(courseId: Long) {
+        val course = uiState.value.course(courseId)?.course ?: return
         viewModelScope.launch {
-            repository.markTaken(
-                DoseCycle.scheduledAt(course, clock.instant().atZone(clock.zone).toLocalDate(), clock.zone),
-            )
+            repository.markTaken(course.id, DoseCycle.scheduledAt(course, today(), clock.zone))
         }
     }
 
-    fun onTakenOn(date: LocalDate) {
-        viewModelScope.launch { repository.markTakenOn(date) }
+    fun onTakenOn(courseId: Long, date: LocalDate) {
+        viewModelScope.launch { repository.markTakenOn(courseId, date) }
     }
 
-    fun onSnooze(minutes: Long) {
-        val course = uiState.value.course ?: return
+    fun onSnooze(courseId: Long, minutes: Long) {
+        val course = uiState.value.course(courseId)?.course ?: return
         viewModelScope.launch {
             repository.snooze(
-                scheduledAt = DoseCycle.scheduledAt(
-                    course,
-                    clock.instant().atZone(clock.zone).toLocalDate(),
-                    clock.zone,
-                ),
+                courseId = course.id,
+                scheduledAt = DoseCycle.scheduledAt(course, today(), clock.zone),
                 delay = Duration.ofMinutes(minutes),
             )
         }
     }
 
-    fun onDeleteCourse() {
-        val course = uiState.value.course ?: return
+    fun onDeleteCourse(courseId: Long) {
+        val course = uiState.value.course(courseId)?.course ?: return
         viewModelScope.launch { repository.deleteCourse(course) }
     }
 
