@@ -226,6 +226,7 @@ fun VoiceCaptureScreen(
                 VoiceFailure.NO_PERMISSION -> R.string.voice_error_no_permission
                 VoiceFailure.NO_MICROPHONE -> R.string.voice_error_no_microphone
                 VoiceFailure.TRANSCRIPTION_FAILED -> R.string.voice_error_transcription
+                VoiceFailure.SPEECH_MODEL_MISSING -> R.string.voice_error_speech_model
             }
             Text(
                 text = stringResource(messageRes),
@@ -246,7 +247,8 @@ fun VoiceCaptureScreen(
                 // же самое».
                 val worthRetrying = state.reason == VoiceFailure.NOTHING_RECOGNIZED ||
                     state.reason == VoiceFailure.NO_MICROPHONE ||
-                    state.reason == VoiceFailure.TRANSCRIPTION_FAILED
+                    state.reason == VoiceFailure.TRANSCRIPTION_FAILED ||
+                    state.reason == VoiceFailure.SPEECH_MODEL_MISSING
                 if (worthRetrying) {
                     Button(
                         onClick = onRetry,

@@ -140,6 +140,7 @@
     <string name="voice_error_no_permission">Without the microphone the app cannot record. Allow access in the system settings.</string>
     <string name="voice_error_no_microphone">The microphone is busy — a call or another app is using it.</string>
     <string name="voice_error_transcription">Could not make out the recording. Please dictate again.</string>
+    <string name="voice_error_speech_model">Dictation runs on your phone and needs its speech model first. Confirm the download in the system window, then tap Retry.</string>
     <string name="date_today">Today</string>
     <string name="date_tomorrow">Tomorrow</string>
     <string name="voice_close">Close</string>

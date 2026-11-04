@@ -15,9 +15,11 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
+import androidx.core.content.edit
 import com.zhukoffsky.magpie.core.util.MagpieLog
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -152,12 +154,32 @@ class OnDeviceTranscriber(
      * Без модели распознаватель на устройстве молча ничего не распознаёт.
      * Скачивание подтверждает человек в системном диалоге (около 50 МБ).
      *
-     * @return true, если модель уже стоит; false — запрос отправлен или
-     *         распознавателя нет вовсе.
+     * **Найденная модель запоминается** ([cached]), и следующая проверка
+     * обходится без распознавателя. Дело не в скорости вопроса, а в том, что
+     * идёт после него: проверка создаёт свой распознаватель и закрывает его,
+     * а живой сеанс диктовки, открытый сразу следом, падает с `error=11`
+     * (замер 4 ноября на Pixel 8, три раза из трёх). Та же ловушка, что
+     * 13 августа: мгновенное переоткрытие после `destroy` не стартует. Пауза
+     * в [RELEASE_MILLIS] после настоящей проверки это лечит, а память о
+     * результате убирает и паузу, и проверку со второй диктовки.
+     *
+     * @param cached верить запомненному «модель есть». Настройки передают
+     *        false: включая «Без облака», человек ждёт настоящей проверки.
+     * @return true, если модель уже стоит; false — запрос на скачивание
+     *         отправлен; null — узнать не удалось (распознаватель не ответил),
+     *         и тогда мешать диктовке незачем.
      */
-    suspend fun ensureModel(languageTag: String): Boolean {
-        val support = support(languageTag) ?: return false
-        if (support.installedOnDeviceLanguages.any { it.equals(languageTag, ignoreCase = true) }) return true
+    suspend fun ensureModel(languageTag: String, cached: Boolean = true): Boolean? {
+        val key = "modelReady:$languageTag"
+        if (cached && prefs.getBoolean(key, false)) return true
+
+        val support = support(languageTag) ?: return null
+        if (support.installedOnDeviceLanguages.any { it.equals(languageTag, ignoreCase = true) }) {
+            prefs.edit { putBoolean(key, true) }
+            delay(RELEASE_MILLIS)
+            return true
+        }
+        prefs.edit { remove(key) }
         MagpieLog.i("on-device: requesting model for $languageTag")
         withContext(Dispatchers.Main) {
             val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
@@ -166,6 +188,8 @@ class OnDeviceTranscriber(
         }
         return false
     }
+
+    private val prefs by lazy { context.getSharedPreferences("speech", Context.MODE_PRIVATE) }
 
     /**
      * Один сеанс распознавания поверх канала.
@@ -286,6 +310,9 @@ class OnDeviceTranscriber(
 
     private companion object {
         const val CHUNK_MILLIS = 100
+
+        /** Сколько ждать после закрытия распознавателя, прежде чем открыть следующий. */
+        const val RELEASE_MILLIS = 500L
         const val FINISH_TIMEOUT_MILLIS = 10_000L
         val END_OF_STREAM = ByteArray(0)
     }

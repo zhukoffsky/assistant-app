@@ -136,9 +136,9 @@ inside the app.
 2. Open it and allow installing from that app when Android asks.
 
 **Requirements:** Android 10 or newer. Voice input for shopping needs
-Android 13+ and the phone's Russian speech model (47 MB). To get it,
-switch on **Offline** in Settings once: the app checks for the model and
-opens the system download dialog if it's missing.
+Android 13+ and the phone's speech model for your language (47 MB for
+Russian). If it's missing, the app offers the system download at your
+first dictation.
 
 > **Test build.** The release APK has no cloud keys: recognition and
 > sorting run fully on the phone. It's signed with a debug key, and it's

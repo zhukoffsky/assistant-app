@@ -90,7 +90,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             cloud.setOfflineOnly(enabled)
             if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                onDeviceTranscriber?.ensureModel(speechLanguageTag())
+                onDeviceTranscriber?.ensureModel(speechLanguageTag(), cached = false)
             }
         }
     }
