@@ -19,6 +19,7 @@ import com.zhukoffsky.magpie.core.util.MagpieLog
 import com.zhukoffsky.magpie.feature.meds.alarm.MedActionReceiver
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
 import com.zhukoffsky.magpie.feature.meds.domain.MedIntake
+import com.zhukoffsky.magpie.feature.meds.domain.labelRes
 import com.zhukoffsky.magpie.feature.reminders.alarm.ReminderActionReceiver
 import com.zhukoffsky.magpie.feature.reminders.domain.Reminder
 
@@ -95,7 +96,9 @@ object MagpieNotifications {
         val notification = NotificationCompat.Builder(context, CHANNEL_MEDS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(strings.getString(R.string.med_notification_title, course.name))
-            .setContentText(strings.getString(R.string.med_notification_dose, intake.doseMg))
+            .setContentText(
+                strings.getString(R.string.med_notification_dose, intake.doseMg, strings.getString(course.unit.labelRes)),
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)

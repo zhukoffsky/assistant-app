@@ -4,6 +4,7 @@ import com.zhukoffsky.magpie.core.data.db.ShoppingDao
 import com.zhukoffsky.magpie.core.data.db.ShoppingItemEntity
 import com.zhukoffsky.magpie.feature.shopping.domain.ParsedShoppingItem
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategoryDictionary
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -49,6 +50,10 @@ class ShoppingRepository(
                 title = title,
                 position = dao.maxPosition() + 1,
                 createdAt = clock.instant(),
+                // Набранное руками раньше всегда шло в «Прочее»: отдел знала
+                // только модель, а клавиатура к ней не ходит. Частые продукты
+                // словарь узнаёт и без сети.
+                category = ShoppingCategoryDictionary.categorize(title)?.name,
             ),
         )
         onChanged()
@@ -109,6 +114,11 @@ class ShoppingRepository(
 
     suspend fun deleteChecked() {
         dao.deleteChecked()
+        onChanged()
+    }
+
+    suspend fun deleteAll() {
+        dao.deleteAll()
         onChanged()
     }
 }

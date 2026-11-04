@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.feature.meds.data
 
+import com.zhukoffsky.magpie.core.data.db.DoseUnit
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
 import com.zhukoffsky.magpie.core.data.db.MedCourseEntity
 import com.zhukoffsky.magpie.core.data.db.MedDao
@@ -93,6 +94,7 @@ class MedRepository(
         dosesMg: List<Int>,
         timeOfDay: LocalTime,
         startDate: LocalDate,
+        unit: DoseUnit = DoseUnit.MG,
     ): Long? {
         val cleanName = name.trim()
         if (cleanName.isEmpty() || dosesMg.isEmpty()) return null
@@ -102,6 +104,7 @@ class MedRepository(
                 id = id,
                 name = cleanName,
                 dosesMg = dosesMg,
+                unit = unit,
                 timeOfDay = timeOfDay,
                 startDate = startDate,
                 isActive = true,
@@ -125,6 +128,7 @@ class MedRepository(
                 id = course.id,
                 name = course.name,
                 dosesMg = course.dosesMg,
+                unit = course.unit,
                 timeOfDay = course.timeOfDay,
                 startDate = course.startDate,
                 isActive = course.isActive,
@@ -330,6 +334,7 @@ private fun MedCourseEntity.toDomain() = MedCourse(
     timeOfDay = timeOfDay,
     startDate = startDate,
     isActive = isActive,
+    unit = unit,
 )
 
 private fun MedIntakeEntity.toDomain() = MedIntake(

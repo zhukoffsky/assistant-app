@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MedCourseEntity::class,
         MedIntakeEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(MagpieConverters::class)
@@ -58,6 +58,18 @@ abstract class MagpieDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE reminders ADD COLUMN snoozedUntil INTEGER")
                 db.execSQL("ALTER TABLE med_intakes ADD COLUMN snoozedUntil INTEGER")
+            }
+        }
+
+        /**
+         * Единица дозы у курса: миллиграммы или штуки.
+         *
+         * Все существующие курсы заводились в миллиграммах — других единиц
+         * не было, — поэтому значение по умолчанию и есть правда о них.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE med_courses ADD COLUMN unit TEXT NOT NULL DEFAULT 'MG'")
             }
         }
     }

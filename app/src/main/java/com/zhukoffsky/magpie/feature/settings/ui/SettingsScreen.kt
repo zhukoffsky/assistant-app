@@ -10,21 +10,24 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,21 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.border
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.settings.AppLanguage
 import com.zhukoffsky.magpie.core.settings.ThemeMode
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
+import com.zhukoffsky.magpie.core.ui.MagpieTopBar
+import com.zhukoffsky.magpie.core.ui.SegmentedChoice
+import com.zhukoffsky.magpie.core.ui.fadingTopEdge
 import com.zhukoffsky.magpie.core.ui.appLocale
-import com.zhukoffsky.magpie.core.ui.theme.MagpieMotion
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticCheck
@@ -57,8 +55,7 @@ import com.zhukoffsky.magpie.core.quickaccess.QuickAccessItem
 import com.zhukoffsky.magpie.core.quickaccess.QuickAccessTarget
 import com.zhukoffsky.magpie.core.sync.SyncSettings
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.zhukoffsky.magpie.core.util.DateFormats
 
 @Composable
 fun SettingsScreen(
@@ -72,6 +69,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val groupByCategory by viewModel.groupByCategory.collectAsStateWithLifecycle()
+    val offlineOnly by viewModel.offlineOnly.collectAsStateWithLifecycle()
 
     // Пользователь уходит в системные настройки и возвращается — состояние
     // надо перечитать, иначе экран будет показывать вчерашнюю правду.
@@ -101,11 +99,17 @@ fun SettingsScreen(
      * высота, списку осталась полоска в одну строку, а кнопка теста уехала
      * за край экрана без всякой возможности до неё добраться.
      */
-    Column(
+    val scrollState = rememberScrollState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+      MagpieTopBar(title = stringResource(R.string.nav_settings))
+
+      Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-    ) {
+            .fadingTopEdge(scrolled = scrollState.canScrollBackward)
+            .verticalScroll(scrollState),
+      ) {
         AppearanceCard(
             themeMode = themeMode,
             language = language,
@@ -120,6 +124,12 @@ fun SettingsScreen(
         ShoppingCard(
             groupByCategory = groupByCategory,
             onGroupByCategoryChange = viewModel::onGroupByCategoryChange,
+        )
+
+        OfflineCard(
+            offlineOnly = offlineOnly,
+            onDeviceAvailable = viewModel.onDeviceSpeechAvailable,
+            onChange = viewModel::onOfflineOnlyChange,
         )
 
         GoogleSyncCard(
@@ -160,6 +170,7 @@ fun SettingsScreen(
 
         // Нижняя навигация плавающая и перекрывает край содержимого.
         Spacer(modifier = Modifier.height(12.dp))
+      }
     }
 }
 
@@ -287,6 +298,61 @@ private fun ShoppingCard(
     }
 }
 
+/**
+ * «Без облака»: голос и разбор только на телефоне.
+ *
+ * Предупреждение о качестве — в самом пояснении, а не мелким шрифтом
+ * отдельно: человек должен решать, видя цену, а не узнать её на первой
+ * диктовке.
+ */
+@Composable
+private fun OfflineCard(
+    offlineOnly: Boolean,
+    onDeviceAvailable: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    SettingsCard {
+        Text(
+            text = stringResource(R.string.offline_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MagpieTheme.colors.ink,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.offline_only),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MagpieTheme.colors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.offline_only_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MagpieTheme.colors.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Switch(
+                checked = offlineOnly,
+                onCheckedChange = onChange,
+                modifier = Modifier.padding(start = 12.dp),
+            )
+        }
+        if (offlineOnly && !onDeviceAvailable) {
+            Text(
+                text = stringResource(R.string.offline_no_recognizer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MagpieTheme.colors.warn,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     GlassSurface(
@@ -296,59 +362,6 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
         shape = RoundedCornerShape(MagpieRadius.lg),
     ) {
         Column(modifier = Modifier.padding(18.dp), content = content)
-    }
-}
-
-/** Ряд взаимоисключающих вариантов: выбранный залит акцентом. */
-@Composable
-private fun <T> SegmentedChoice(
-    options: List<T>,
-    selected: T,
-    label: @Composable (T) -> String,
-    onSelect: (T) -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
-            val isSelected = option == selected
-            val background by animateColorAsState(
-                targetValue = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MagpieTheme.colors.glass
-                },
-                animationSpec = MagpieMotion.snappy(),
-                label = "segmentBackground",
-            )
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(MagpieRadius.sm))
-                    .background(background)
-                    .border(
-                        BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
-                        RoundedCornerShape(MagpieRadius.sm),
-                    )
-                    .selectable(
-                        selected = isSelected,
-                        role = Role.RadioButton,
-                        onClick = { onSelect(option) },
-                    )
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label(option),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MagpieTheme.colors.ink
-                    },
-                    maxLines = 1,
-                )
-            }
-        }
     }
 }
 
@@ -362,9 +375,6 @@ private fun GoogleSyncCard(
     // Локаль читается снаружи remember и служит его ключом: при смене языка
     // форматтер надо пересоздать, иначе дата останется на прежнем языке.
     val locale = appLocale()
-    val formatter = remember(locale) {
-        DateTimeFormatter.ofPattern("d MMM, HH:mm", locale).withZone(ZoneId.systemDefault())
-    }
 
     SettingsCard {
         Text(
@@ -395,7 +405,10 @@ private fun GoogleSyncCard(
 
         Text(
             text = settings.lastSyncAt
-                ?.let { stringResource(R.string.sync_last, formatter.format(it)) }
+                ?.let {
+                    val moment = it.atZone(ZoneId.systemDefault()).toLocalDateTime()
+                    stringResource(R.string.sync_last, DateFormats.dateTime(moment, locale))
+                }
                 ?: stringResource(R.string.sync_never),
             style = MaterialTheme.typography.bodyMedium,
             color = MagpieTheme.colors.ink,
@@ -410,9 +423,44 @@ private fun GoogleSyncCard(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        /*
+         * «Отключить» — не в цвет действия и не сразу. Рядом с
+         * «Синхронизировать сейчас» той же краской оно читалось как второе
+         * полезное действие, а промах стоит заново пройденного согласия Google.
+         */
+        var confirmDisconnect by remember { mutableStateOf(false) }
+        if (confirmDisconnect) {
+            MagpieAlertDialog(
+                onDismissRequest = { confirmDisconnect = false },
+                title = { Text(stringResource(R.string.sync_disconnect_confirm_title)) },
+                text = { Text(stringResource(R.string.sync_disconnect_confirm_text)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            confirmDisconnect = false
+                            onDisconnect()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text(stringResource(R.string.sync_disconnect)) }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { confirmDisconnect = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MagpieTheme.colors.ink2),
+                    ) { Text(stringResource(R.string.picker_cancel)) }
+                },
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
             TextButton(onClick = onSyncNow) { Text(stringResource(R.string.sync_now)) }
-            TextButton(onClick = onDisconnect) { Text(stringResource(R.string.sync_disconnect)) }
+            TextButton(
+                onClick = { confirmDisconnect = true },
+                colors = ButtonDefaults.textButtonColors(contentColor = MagpieTheme.colors.ink2),
+            ) { Text(stringResource(R.string.sync_disconnect)) }
         }
     }
 }
@@ -496,10 +544,13 @@ private fun QuickAccessCard(
         )
 
         items.forEach { item ->
+            // Высота строки задана явно: у строки с кнопкой её диктовала
+            // кнопка (48dp), у строки «Уже на экране» — текст, и список шёл
+            // рваным шагом — 34dp, 34dp, потом вдруг 76dp.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
+                    .heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(

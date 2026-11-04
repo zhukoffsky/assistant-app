@@ -8,12 +8,18 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import com.zhukoffsky.magpie.core.diagnostics.DiagnosticsInspector
 import com.zhukoffsky.magpie.BuildConfig
 import com.zhukoffsky.magpie.core.llm.LlmPhraseParser
+import com.zhukoffsky.magpie.core.settings.CloudPreferences
+import com.zhukoffsky.magpie.core.speech.HedgedTranscriber
+import com.zhukoffsky.magpie.core.speech.LiveTranscript
+import com.zhukoffsky.magpie.core.speech.RecordingTranscriber
+import com.zhukoffsky.magpie.core.speech.OnDeviceTranscriber
+import com.zhukoffsky.magpie.core.llm.LlmProvider
+import com.zhukoffsky.magpie.core.llm.LlmProviderChain
 import com.zhukoffsky.magpie.core.llm.LlmShoppingParser
 import com.zhukoffsky.magpie.core.llm.OpenAiCompatApi
 import com.zhukoffsky.magpie.core.quickaccess.QuickAccessInspector
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperApi
 import com.zhukoffsky.magpie.core.speech.CloudflareWhisperTranscriber
-import com.zhukoffsky.magpie.core.speech.SpeechTranscriber
 import com.zhukoffsky.magpie.feature.shopping.domain.HybridShoppingParser
 import com.zhukoffsky.magpie.feature.shopping.domain.RuleBasedShoppingParser
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItemsParser
@@ -28,6 +34,8 @@ import com.zhukoffsky.magpie.core.sync.SyncTrigger
 import com.zhukoffsky.magpie.core.sync.WorkManagerSyncTrigger
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import android.os.Build
+import android.speech.SpeechRecognizer
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.time.Duration
@@ -61,6 +69,7 @@ class AppContainer(context: Context) {
         ).addMigrations(
             MagpieDatabase.MIGRATION_1_2,
             MagpieDatabase.MIGRATION_2_3,
+            MagpieDatabase.MIGRATION_3_4,
         ).build()
     }
 
@@ -83,7 +92,8 @@ class AppContainer(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * Клиент с запасом по времени и одним повтором.
+     * Клиент фоновых запросов (синхронизация с Google Tasks): с запасом по
+     * времени и одним повтором. Диктовка ходит через [dictationClient].
      *
      * Умолчания OkHttp — десять секунд, и их не хватает: 12 августа разбор
      * покупок упал по сети, и весь список приехал одной строкой, потому что
@@ -133,9 +143,34 @@ class AppContainer(context: Context) {
      */
     private fun Response.isTemporaryFailure(): Boolean = code == 429 || code >= 500
 
-    private inline fun <reified T> retrofit(baseUrl: String): T = Retrofit.Builder()
+    /**
+     * Клиент диктовки: короткие пределы и без повтора.
+     *
+     * Человек смотрит на карточку и ждёт, поэтому 30 секунд с повтором здесь
+     * неприемлемы: зависший, а не отказавший провайдер держал диктовку по
+     * полминуты на шаг, до полутора минут на Whisper и две модели подряд.
+     * Повтор больше не нужен: на отказ у каждого шага есть запасной путь —
+     * у моделей вторая модель и правила, у Whisper распознавание на
+     * телефоне. Медленный ответ отдаётся запасному пути быстрее, чем дождётся
+     * второй попытки.
+     *
+     * Соединение — 2 с: если за это время не дозвонились, сеть плохая, и
+     * ждать дольше значит только тянуть. Весь запрос — 6 с: модели отвечают
+     * за 3–4 с, Whisper на обычной диктовке — за 2–3 с.
+     */
+    private val dictationClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(DICTATION_CONNECT_TIMEOUT)
+            .callTimeout(DICTATION_CALL_TIMEOUT)
+            .build()
+    }
+
+    private inline fun <reified T> retrofit(
+        baseUrl: String,
+        client: OkHttpClient = httpClient,
+    ): T = Retrofit.Builder()
         .baseUrl(baseUrl)
-        .client(httpClient)
+        .client(client)
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(T::class.java)
@@ -157,24 +192,61 @@ class AppContainer(context: Context) {
     val shoppingItemsParser: ShoppingItemsParser by lazy {
         HybridShoppingParser(
             rules = RuleBasedShoppingParser(),
-            llm = LlmShoppingParser(
-                api = retrofit(OpenAiCompatApi.BASE_URL),
-                apiKey = { BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() } },
-            ),
+            llm = LlmShoppingParser(api = llmProviders, apiKey = { llmKeyUnlessOffline() }),
         )
     }
 
     val phraseParser: PhraseParser by lazy {
-        val apiKey = BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() }
-
         HybridPhraseParser(
             rules = RuleBasedPhraseParser(),
-            llm = LlmPhraseParser(
-                api = retrofit(OpenAiCompatApi.BASE_URL),
-                apiKey = { apiKey },
+            llm = LlmPhraseParser(api = llmProviders, apiKey = { llmKeyUnlessOffline() }),
+        )
+    }
+
+    /**
+     * Workers AI, а если не ответил — Z.ai. Каждый провайдер входит в цепочку,
+     * только если для него есть ключ в сборке; без обоих разбор идёт на
+     * одних правилах, как и раньше. Почему запасной вообще понадобился — см.
+     * `LlmProviderChain`.
+     *
+     * **Порядок перевёрнут 4 ноября 2026.** Z.ai весь день отвечал `429` на
+     * каждый запрос подряд, и каждая диктовка теряла на этом отказе
+     * 0,5–0,8 с, прежде чем дойти до Mistral, который и отвечал. Напоминаний
+     * это касается так же: до Z.ai они в тот день не доходили всё равно.
+     */
+    private val llmProviders: LlmProviderChain by lazy {
+        LlmProviderChain(
+            listOfNotNull(
+                if (speechAvailable) {
+                    LlmProvider(
+                        name = "workers-ai",
+                        api = retrofit(OpenAiCompatApi.workersAiBaseUrl(BuildConfig.SPEECH_ACCOUNT_ID), dictationClient),
+                        apiKey = BuildConfig.SPEECH_API_TOKEN,
+                        model = OpenAiCompatApi.WORKERS_AI_MODEL,
+                    )
+                } else {
+                    null
+                },
+                BuildConfig.LLM_API_KEY.takeIf { it.isNotBlank() }?.let { key ->
+                    LlmProvider("z.ai", retrofit(OpenAiCompatApi.BASE_URL, dictationClient), key, OpenAiCompatApi.MODEL)
+                },
             ),
         )
     }
+
+    /**
+     * Парсеры спрашивают ключ, чтобы понять, есть ли вообще кого звать.
+     * Ключи провайдеров цепочка подставляет сама, поэтому здесь не ключ, а
+     * только «да» или «нет».
+     */
+    private val llmGate: String?
+        get() = if (llmProviders.isEmpty) null else "provider-chain"
+
+    /** В режиме «Без облака» модели не зовутся вовсе — разбирают правила и словарь. */
+    private suspend fun llmKeyUnlessOffline(): String? =
+        if (cloudPreferences.isOfflineOnly()) null else llmGate
+
+    val cloudPreferences: CloudPreferences by lazy { CloudPreferences(appContext) }
 
     /**
      * Расшифровка записанного голоса.
@@ -195,12 +267,57 @@ class AppContainer(context: Context) {
         get() = BuildConfig.SPEECH_ACCOUNT_ID.isNotBlank() &&
             BuildConfig.SPEECH_API_TOKEN.isNotBlank()
 
-    val speechTranscriber: SpeechTranscriber by lazy {
-        CloudflareWhisperTranscriber(
-            api = retrofit(CloudflareWhisperApi.BASE_URL),
-            accountId = BuildConfig.SPEECH_ACCOUNT_ID,
-            apiToken = BuildConfig.SPEECH_API_TOKEN,
+    /**
+     * Whisper в облаке, если успел, иначе текст, распознанный телефоном прямо
+     * во время записи; в режиме «Без облака» — только телефон. Подробности —
+     * в `HedgedTranscriber` и `OnDeviceTranscriber`.
+     */
+    val recordingTranscriber: RecordingTranscriber by lazy {
+        HedgedTranscriber(
+            whisper = if (speechAvailable) {
+                CloudflareWhisperTranscriber(
+                    api = retrofit(CloudflareWhisperApi.BASE_URL, dictationClient),
+                    accountId = BuildConfig.SPEECH_ACCOUNT_ID,
+                    apiToken = BuildConfig.SPEECH_API_TOKEN,
+                )
+            } else {
+                null
+            },
+            onDevice = onDeviceTranscriber?.let { transcriber ->
+                { pcm, language ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) transcriber.transcribe(pcm, language) else null
+                }
+            },
+            // Режим проверяется на каждой диктовке: переключатель меняют на ходу.
+            offlineOnly = { cloudPreferences.isOfflineOnly() },
         )
+    }
+
+    /** Открыть расшифровку на лету. С главного потока; null — телефон не умеет. */
+    fun startLiveTranscript(languageTag: String): LiveTranscript? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        return onDeviceTranscriber?.startLive(languageTag, sampleRate = 16_000, channels = 1)
+    }
+
+    /** Есть ли на телефоне распознаватель, принимающий запись потоком. */
+    val onDeviceSpeechAvailable: Boolean
+        get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext)
+
+    /**
+     * Есть ли чем расшифровать свою запись — в облаке или на телефоне. Нет
+     * ни того, ни другого — покупки идут через системный диалог.
+     */
+    val transcriptionAvailable: Boolean
+        get() = speechAvailable || onDeviceSpeechAvailable
+
+    /** Распознаватель на телефоне — для настроек: проверить и докачать модель языка. */
+    val onDeviceTranscriber: OnDeviceTranscriber? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && onDeviceSpeechAvailable) {
+            OnDeviceTranscriber(appContext)
+        } else {
+            null
+        }
     }
 
     val remindersSyncer by lazy {
@@ -239,7 +356,11 @@ class AppContainer(context: Context) {
     val quickAccessInspector by lazy { QuickAccessInspector(appContext) }
 
     private companion object {
+        /** Фоновая синхронизация с Google Tasks: там можно и подождать. */
         val HTTP_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        val DICTATION_CONNECT_TIMEOUT: Duration = Duration.ofSeconds(2)
+        val DICTATION_CALL_TIMEOUT: Duration = Duration.ofSeconds(6)
 
         /**
          * Пауза перед единственным повтором.

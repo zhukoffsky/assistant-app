@@ -30,6 +30,9 @@ interface ShoppingDao {
 
     @Query("DELETE FROM shopping_items WHERE isChecked = 1")
     suspend fun deleteChecked()
+
+    @Query("DELETE FROM shopping_items")
+    suspend fun deleteAll()
 }
 
 @Dao

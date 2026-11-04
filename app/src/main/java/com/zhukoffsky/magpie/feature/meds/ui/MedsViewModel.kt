@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
+import com.zhukoffsky.magpie.core.data.db.DoseUnit
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
 import com.zhukoffsky.magpie.feature.meds.data.MedRepository
 import com.zhukoffsky.magpie.feature.meds.domain.DoseCycle
@@ -90,6 +91,7 @@ class MedsViewModel(
         doses: String,
         timeOfDay: LocalTime,
         startDate: LocalDate,
+        unit: DoseUnit,
     ): Boolean {
         val parsedDoses = parseDoses(doses) ?: return false
         if (name.isBlank()) return false
@@ -101,6 +103,7 @@ class MedsViewModel(
                 dosesMg = parsedDoses,
                 timeOfDay = timeOfDay,
                 startDate = startDate,
+                unit = unit,
             )
         }
         return true

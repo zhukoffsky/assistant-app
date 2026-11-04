@@ -15,7 +15,7 @@ package com.zhukoffsky.magpie.core.speech
 fun interface SpeechTranscriber {
 
     /**
-     * @param audio содержимое файла OggOpus целиком.
+     * @param audio содержимое файла целиком — AAC в MP4, как пишет `VoiceRecorder`.
      * @param languageTag язык записи, например `ru-RU`.
      * @return распознанный текст или `null`, если расшифровать не удалось.
      *         Пустая строка — это тоже неудача: значит, ничего не расслышали.

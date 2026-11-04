@@ -1,6 +1,8 @@
 package com.zhukoffsky.magpie.feature.shopping.domain
 
 import com.zhukoffsky.magpie.core.util.MagpieLog
+import com.zhukoffsky.magpie.core.llm.LLM_DEADLINE_MILLIS
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Разбор надиктованной фразы в список покупок.
@@ -13,36 +15,38 @@ fun interface ShoppingItemsParser {
     suspend fun parse(phrase: String): List<ParsedShoppingItem>
 }
 
-/** Правила: режет по запятым, точкам с запятой и союзам. Отделов не знают. */
+/**
+ * Правила: режут по знакам препинания и союзам, а сплошной остаток — по
+ * смене отдела ([ShoppingAisleSplitter]). Отдел проставляет вызывающий.
+ */
 class RuleBasedShoppingParser : ShoppingItemsParser {
     override suspend fun parse(phrase: String): List<ParsedShoppingItem> =
-        ShoppingPhraseParser.parse(phrase).map { ParsedShoppingItem(title = it) }
+        ShoppingPhraseParser.parse(phrase)
+            .flatMap(ShoppingAisleSplitter::split)
+            .map { ParsedShoppingItem(title = it) }
 }
 
 /**
- * Сначала правила, при неудаче — LLM.
+ * Правила — когда уверены, модель — когда нет, правила — запасной путь.
  *
- * **Что считается неудачей.** Отсутствие во фразе знаков препинания.
+ * **Почему не «модель всегда», как было до 4 ноября.** Та схема родилась,
+ * когда правила не знали отделов: Whisper поставил запятые, правила
+ * разрезали фразу сами, и девять позиций легли без отдела. С тех пор отдел
+ * даёт словарь ([ShoppingCategoryDictionary]), а правила режут сплошную
+ * строку по смене отдела и согласованию ([ShoppingAisleSplitter]). Замер на
+ * живой диктовке: правила разобрали двенадцать позиций верно за 0,2 с, а
+ * модель — так же, но за 5,7 с (Z.ai `429`, затем Mistral). Владелец выбрал
+ * скорость.
  *
- * Первая версия спрашивала модель, только когда правила вернули ровно одну
- * позицию. Это не сработало на живой диктовке: «надо молоко мясо колбаса сыр
- * и салфетки» правила разрезали по союзу «и» — получилось две позиции, к
- * модели не пошли вовсе, и первая осталась комом из четырёх продуктов.
+ * **Когда правила уверены** ([ShoppingAisleSplitter.isSure]): у каждой
+ * позиции есть отдел, каждое существительное до предлога знакомо словарю,
+ * и слов там не больше трёх. Незнакомое слово значит, что позиция могла
+ * быть расслышана неверно или склеена с чем-то; четыре слова до предлога —
+ * почти наверняка склейка («средство для мытья посуды» — одно слово до
+ * «для»). Тогда спрашиваем модель, а её отдел главнее словарного.
  *
- * Союз не является надёжной границей: он встречается и внутри перечисления,
- * и между двумя из пяти позиций. Надёжны только знаки препинания, а их
- * распознавание речи не ставит. Поэтому правило простое: нет `,` `;` или
- * перевода строки — значит границы неизвестны, спрашиваем модель.
- *
- * Одного слова достаточно, чтобы не ходить в сеть: «молоко» — это молоко.
- *
- * **Почему решает модель, а не счётчик слов.** Резать по пробелам нельзя:
- * «хлеб бородинский» и «зубная паста» — по одной позиции, а «молоко хлеб» —
- * две, и отличить это может только тот, кто знает язык. Правило «два слова
- * значит две покупки» ломает половину реальных списков.
- *
- * Ответ LLM отбрасывается, если она вернула пустоту: результат правил хуже,
- * но он всегда есть, и фраза не теряется никогда.
+ * Модель не ответила — остаётся разбор правил: хуже, но фраза не теряется
+ * никогда. Ввод с клавиатуры сюда не попадает вовсе.
  */
 class HybridShoppingParser(
     private val rules: ShoppingItemsParser,
@@ -50,30 +54,34 @@ class HybridShoppingParser(
 ) : ShoppingItemsParser {
 
     override suspend fun parse(phrase: String): List<ParsedShoppingItem> {
-        val byRules = rules.parse(phrase)
-        if (!needsLlm(phrase, byRules)) {
+        val byRules = rules.parse(phrase).map(::withDictionaryAisle)
+        if (byRules.isNotEmpty() && byRules.all(::isConfident)) {
             MagpieLog.i("shopping parse: rules, ${byRules.size} item(s)")
             return byRules
         }
 
-        val byLlm = llm.parse(phrase).filter { it.title.isNotBlank() }
-        if (byLlm.isEmpty()) {
-            MagpieLog.i("shopping parse: fallback to rules")
-            return byRules
+        // Общий предел на модель (LLM_DEADLINE_MILLIS): не уложились —
+        // остаётся разбор правил, а не ожидание второй модели за первой.
+        val byLlm = withTimeoutOrNull(LLM_DEADLINE_MILLIS) { llm.parse(phrase) }
+            .orEmpty()
+            .filter { it.title.isNotBlank() }
+        if (byLlm.isNotEmpty()) {
+            MagpieLog.i("shopping parse: llm, ${byLlm.size} item(s)")
+            return byLlm.map(::withDictionaryAisle)
         }
 
-        MagpieLog.i("shopping parse: llm, ${byLlm.size} item(s)")
-        return byLlm
+        MagpieLog.i("shopping parse: fallback to rules, ${byRules.size} item(s)")
+        return byRules
     }
 
-    private fun needsLlm(phrase: String, byRules: List<ParsedShoppingItem>): Boolean {
-        if (STRONG_SEPARATOR.containsMatchIn(phrase)) return false
-        return phrase.trim().split(WHITESPACE).size > 1 || byRules.size > 1
-    }
+    private fun isConfident(item: ParsedShoppingItem): Boolean =
+        item.category != null && ShoppingAisleSplitter.isSure(item.title)
 
-    private companion object {
-        /** То, что распознавание речи не ставит, а человек с клавиатуры — ставит. */
-        val STRONG_SEPARATOR = Regex("""[,;\n]""")
-        val WHITESPACE = Regex("""\s+""")
+    /** Отдел модели главнее; словарь заполняет только пустоту и «Прочее». */
+    private fun withDictionaryAisle(item: ParsedShoppingItem): ParsedShoppingItem {
+        if (item.category != null && item.category != ShoppingCategory.OTHER) return item
+        return ShoppingCategoryDictionary.categorize(item.title)
+            ?.let { item.copy(category = it) }
+            ?: item
     }
 }

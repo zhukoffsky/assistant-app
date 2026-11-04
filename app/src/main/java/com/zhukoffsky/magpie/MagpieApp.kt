@@ -64,7 +64,7 @@ class MagpieApp : Application() {
                     // Первый проход подписки — это старт процесса, дальше
                     // только настоящая смена языка: у превью жёсткий лимит
                     // частоты, и переписывать их «на всякий случай» нельзя.
-                    WidgetPreviews.update(this@MagpieApp, force = index > 0)
+                    WidgetPreviews.update(this@MagpieApp, force = index > 0, language = language.name)
                 }
         }
     }

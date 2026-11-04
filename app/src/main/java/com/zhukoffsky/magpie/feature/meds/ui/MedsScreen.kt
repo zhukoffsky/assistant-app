@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,13 +13,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -26,37 +31,46 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhukoffsky.magpie.R
 import com.zhukoffsky.magpie.core.ui.GlassSurface
+import com.zhukoffsky.magpie.core.ui.GroupPosition
+import com.zhukoffsky.magpie.core.ui.MagpieTopBar
+import com.zhukoffsky.magpie.core.ui.SegmentedChoice
+import com.zhukoffsky.magpie.core.ui.fadingTopEdge
+import com.zhukoffsky.magpie.core.ui.glassGroupSegment
+import com.zhukoffsky.magpie.core.util.DateFormats
 import com.zhukoffsky.magpie.core.ui.MagpieAlertDialog
 import com.zhukoffsky.magpie.core.ui.appLocale
+import com.zhukoffsky.magpie.core.ui.ListEntrance
+import com.zhukoffsky.magpie.core.ui.rememberListEntrance
 import com.zhukoffsky.magpie.core.ui.staggeredEntrance
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 import com.zhukoffsky.magpie.core.data.db.IntakeStatus
+import com.zhukoffsky.magpie.core.data.db.DoseUnit
 import com.zhukoffsky.magpie.core.ui.DatePickerDialog
 import com.zhukoffsky.magpie.core.ui.TimePickerDialog
 import com.zhukoffsky.magpie.feature.meds.domain.DoseDay
 import com.zhukoffsky.magpie.feature.meds.domain.MedCourse
+import com.zhukoffsky.magpie.feature.meds.domain.labelRes
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 
 /**
  * Вкладка таблеток: список курсов, карточка одного курса, форма.
@@ -81,26 +95,29 @@ fun MedsScreen(
     var formId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val opened = openedId?.let(state::course)
-    val hasCourses = state.courses.isNotEmpty()
 
-    BackHandler(enabled = formId != null && hasCourses) { formId = null }
+    BackHandler(enabled = formId != null) { formId = null }
     BackHandler(enabled = formId == null && opened != null) { openedId = null }
 
     when {
         state.isLoading -> Unit
 
-        !hasCourses || formId != null -> CourseForm(
+        formId != null -> CourseForm(
             course = formId?.let(state::course)?.course,
-            canCancel = hasCourses,
             onCancel = { formId = null },
-            onSave = { name, doses, time, date ->
+            onSave = { name, doses, unit, time, date ->
                 // Курс могли удалить, пока форма была открыта: тогда это новый.
                 val id = formId?.takeIf { state.course(it) != null } ?: NEW_COURSE
-                val saved = viewModel.onSaveCourse(id, name, doses, time, date)
+                val saved = viewModel.onSaveCourse(id, name, doses, time, date, unit)
                 if (saved) formId = null
                 saved
             },
         )
+
+        // Первый запуск — пустое состояние, а не сразу форма. Голая форма
+        // «Новый курс» встречала человека, ещё не понявшего, что это за
+        // раздел и зачем ему заводить курс.
+        state.courses.isEmpty() -> EmptyCourses(onAdd = { formId = NEW_COURSE })
 
         opened != null -> CourseDetail(
             item = opened,
@@ -128,21 +145,77 @@ fun MedsScreen(
 private const val NEW_COURSE = 0L
 
 @Composable
+private fun EmptyCourses(onAdd: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        MagpieTopBar(title = stringResource(R.string.nav_meds))
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        RoundedCornerShape(MagpieRadius.lg),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_medication),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+            Text(
+                text = stringResource(R.string.med_empty_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MagpieTheme.colors.ink,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 20.dp),
+            )
+            Text(
+                text = stringResource(R.string.med_empty_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MagpieTheme.colors.ink2,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Button(
+                onClick = onAdd,
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(MagpieRadius.md),
+            ) {
+                Text(stringResource(R.string.med_add_course))
+            }
+        }
+    }
+}
+
+@Composable
 private fun CourseForm(
     course: MedCourse?,
-    canCancel: Boolean,
     onCancel: () -> Unit,
-    onSave: (name: String, doses: String, time: LocalTime, startDate: LocalDate) -> Boolean,
+    onSave: (name: String, doses: String, unit: DoseUnit, time: LocalTime, startDate: LocalDate) -> Boolean,
 ) {
     // Ключ — курс: иначе форма нового курса, открытая после правки другого,
     // унаследовала бы его поля.
     var name by remember(course?.id) { mutableStateOf(course?.name.orEmpty()) }
     var doses by remember(course?.id) { mutableStateOf(course?.dosesMg?.joinToString(", ").orEmpty()) }
+    var unit by remember(course?.id) { mutableStateOf(course?.unit ?: DoseUnit.MG) }
     var time by remember(course?.id) { mutableStateOf(course?.timeOfDay ?: LocalTime.of(9, 0)) }
     var startDate by remember(course?.id) { mutableStateOf(course?.startDate ?: LocalDate.now()) }
     var showError by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     if (showTimePicker) {
         TimePickerDialog(
@@ -166,80 +239,97 @@ private fun CourseForm(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = stringResource(if (course == null) R.string.med_new_course_title else R.string.med_setup_title),
-            style = MaterialTheme.typography.titleMedium,
+    Column(modifier = Modifier.fillMaxSize()) {
+        // «Назад» в шапке заменил кнопку «Отмена» под формой: два способа
+        // выйти без сохранения на одном экране — один лишний.
+        MagpieTopBar(
+            title = stringResource(if (course == null) R.string.med_new_course_title else R.string.med_setup_title),
+            onBack = onCancel,
         )
 
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text(stringResource(R.string.med_name_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = doses,
-            onValueChange = { doses = it },
-            label = { Text(stringResource(R.string.med_doses_hint)) },
-            supportingText = { Text(stringResource(R.string.med_doses_help)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedButton(
-            onClick = { showTimePicker = true },
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .fadingTopEdge(scrolled = scrollState.canScrollBackward)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(
-                    R.string.med_time_value,
-                    time.format(DateTimeFormatter.ofPattern("HH:mm")),
-                ),
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.med_name_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
-        }
 
-        OutlinedButton(
-            onClick = { showDatePicker = true },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
             Text(
-                stringResource(
-                    R.string.med_start_date_value,
-                    startDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", appLocale())),
-                ),
+                text = stringResource(R.string.med_unit_title),
+                style = MaterialTheme.typography.labelMedium,
+                color = MagpieTheme.colors.ink2,
+                modifier = Modifier.padding(top = 4.dp),
             )
-        }
-        Text(
-            text = stringResource(R.string.med_start_date_help),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            SegmentedChoice(
+                options = DoseUnit.entries,
+                selected = unit,
+                label = { stringResource(it.labelRes) },
+                onSelect = { unit = it },
+            )
 
-        if (showError) {
+            OutlinedTextField(
+                value = doses,
+                onValueChange = { doses = it },
+                label = { Text(stringResource(R.string.med_doses_hint, stringResource(unit.labelRes))) },
+                supportingText = {
+                    Text(
+                        stringResource(
+                            if (unit == DoseUnit.MG) R.string.med_doses_help_mg else R.string.med_doses_help_pieces,
+                        ),
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(
+                onClick = { showTimePicker = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(
+                        R.string.med_time_value,
+                        time.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    ),
+                )
+            }
+
+            OutlinedButton(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.med_start_date_value, DateFormats.date(startDate, appLocale())))
+            }
             Text(
-                text = stringResource(R.string.med_invalid_input),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.med_start_date_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
 
-        Button(
-            onClick = { showError = !onSave(name, doses, time, startDate) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.med_save))
-        }
+            if (showError) {
+                Text(
+                    text = stringResource(R.string.med_invalid_input),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
 
-        if (canCancel) {
-            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.med_cancel))
+            Button(
+                onClick = { showError = !onSave(name, doses, unit, time, startDate) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(MagpieRadius.md),
+            ) {
+                Text(stringResource(R.string.med_save))
             }
         }
     }
@@ -253,27 +343,36 @@ private fun CourseList(
     onOpen: (Long) -> Unit,
     onAdd: () -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 4.dp),
-    ) {
-        items(items = courses, key = { it.course.id }) { item ->
-            TodayCard(
-                item = item,
-                onTaken = { onTaken(item.course.id) },
-                onSnooze = { onSnooze(item.course.id, it) },
-                onOpen = { onOpen(item.course.id) },
-            )
-        }
+    val listState = rememberLazyListState()
 
-        item(key = "add") {
-            OutlinedButton(
-                onClick = onAdd,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                Text(stringResource(R.string.med_add_course))
+    Column(modifier = Modifier.fillMaxSize()) {
+        MagpieTopBar(title = stringResource(R.string.nav_meds))
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .fadingTopEdge(scrolled = listState.canScrollBackward),
+            contentPadding = PaddingValues(vertical = 4.dp),
+        ) {
+            items(items = courses, key = { it.course.id }) { item ->
+                TodayCard(
+                    item = item,
+                    onTaken = { onTaken(item.course.id) },
+                    onSnooze = { onSnooze(item.course.id, it) },
+                    onOpen = { onOpen(item.course.id) },
+                )
+            }
+
+            item(key = "add") {
+                OutlinedButton(
+                    onClick = onAdd,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Text(stringResource(R.string.med_add_course))
+                }
             }
         }
     }
@@ -290,6 +389,8 @@ private fun CourseDetail(
     onDelete: () -> Unit,
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val today = remember { LocalDate.now() }
 
     // История удаляется вместе с курсом, и вернуть её нечем — поэтому
     // спрашиваем. Раньше курс был один, и удаление сразу открывало форму
@@ -305,21 +406,21 @@ private fun CourseDetail(
                         confirmDelete = false
                         onDelete()
                     },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(R.string.med_delete_course)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.med_cancel)) }
+                TextButton(
+                    onClick = { confirmDelete = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MagpieTheme.colors.ink2),
+                ) { Text(stringResource(R.string.med_cancel)) }
             },
         )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.padding(start = 6.dp, top = 4.dp),
-        ) {
-            Text(stringResource(R.string.med_all_courses))
-        }
+        // Название курса — в шапке, поэтому карточка ниже его не повторяет.
+        MagpieTopBar(title = item.course.name, onBack = onBack)
 
         TodayCard(
             item = item,
@@ -335,26 +436,43 @@ private fun CourseDetail(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TextButton(onClick = onEdit) { Text(stringResource(R.string.med_edit_course)) }
-            TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.med_delete_course)) }
+            TextButton(
+                onClick = { confirmDelete = true },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text(stringResource(R.string.med_delete_course)) }
         }
 
         Text(
             text = stringResource(R.string.med_history_title),
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = MagpieTheme.colors.ink2,
-            modifier = Modifier.padding(start = 22.dp, top = 10.dp, bottom = 6.dp),
+            modifier = Modifier.padding(start = 24.dp, top = 10.dp, bottom = 8.dp),
         )
 
+        val entrance = rememberListEntrance()
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .fadingTopEdge(scrolled = listState.canScrollBackward),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 12.dp),
         ) {
             itemsIndexed(
                 items = item.history,
                 key = { _, day -> day.date.toEpochDay() },
             ) { index, day ->
-                HistoryRow(day = day, index = index, onTakenOn = onTakenOn)
+                HistoryRow(
+                    day = day,
+                    unit = item.course.unit,
+                    index = index,
+                    entrance = entrance,
+                    position = GroupPosition.of(index, item.history.size),
+                    // Сегодняшний приём отмечается большой кнопкой в карточке
+                    // выше; вторая «Принял» про тот же приём в строке истории
+                    // только заставляла выбирать между двумя одинаковыми.
+                    canMark = day.date != today,
+                    onTakenOn = onTakenOn,
+                )
             }
         }
     }
@@ -398,13 +516,16 @@ private fun TodayCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = course.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MagpieTheme.colors.ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    // На экране курса название уже стоит в шапке.
+                    if (onOpen != null) {
+                        Text(
+                            text = course.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MagpieTheme.colors.ink,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Row(modifier = Modifier.padding(top = 2.dp)) {
                         Text(
                             text = course.timeOfDay.format(DateTimeFormatter.ofPattern("HH:mm")) + " · ",
@@ -433,7 +554,7 @@ private fun TodayCard(
                 // проверяет, прежде чем пить, а у цикла она меняется по дням.
                 item.todayDoseMg?.let { dose ->
                     Text(
-                        text = "$dose ${stringResource(R.string.med_unit_mg)}",
+                        text = "$dose ${stringResource(course.unit.labelRes)}",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MagpieTheme.colors.ink,
                         maxLines = 1,
@@ -496,8 +617,8 @@ private fun SnoozeChip(minutes: Long, onClick: () -> Unit, modifier: Modifier = 
         onClick = onClick,
         modifier = modifier.height(36.dp),
         shape = RoundedCornerShape(MagpieRadius.sm),
-        color = MagpieTheme.colors.glass,
-        border = BorderStroke(1.dp, MagpieTheme.colors.glassBorder),
+        color = MagpieTheme.colors.control,
+        border = BorderStroke(1.dp, MagpieTheme.colors.controlBorder),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
@@ -512,41 +633,40 @@ private fun SnoozeChip(minutes: Long, onClick: () -> Unit, modifier: Modifier = 
 }
 
 @Composable
-private fun HistoryRow(day: DoseDay, index: Int, onTakenOn: (LocalDate) -> Unit) {
-    val locale = appLocale()
-    val dateFormatter = remember(locale) {
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-    }
-
-    GlassSurface(
+private fun HistoryRow(
+    day: DoseDay,
+    unit: DoseUnit,
+    index: Int,
+    entrance: ListEntrance,
+    position: GroupPosition,
+    canMark: Boolean,
+    onTakenOn: (LocalDate) -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .staggeredEntrance(index),
-        shape = RoundedCornerShape(MagpieRadius.md),
+            .staggeredEntrance(index, entrance)
+            .glassGroupSegment(position, MagpieTheme.colors, dividerInset = 16.dp)
+            .heightIn(min = 56.dp)
+            .padding(start = 16.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = day.date.format(dateFormatter),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MagpieTheme.colors.ink,
-                )
-                Text(
-                    text = "${day.doseMg} ${stringResource(R.string.med_unit_mg)} · ${statusLabel(day.status)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MagpieTheme.colors.ink2,
-                )
-            }
+        Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
+            Text(
+                text = DateFormats.date(day.date, appLocale()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MagpieTheme.colors.ink,
+            )
+            Text(
+                text = "${day.doseMg} ${stringResource(unit.labelRes)} · ${statusLabel(day.status)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MagpieTheme.colors.ink2,
+            )
+        }
 
-            if (day.status != IntakeStatus.TAKEN) {
-                TextButton(onClick = { onTakenOn(day.date) }) {
-                    Text(stringResource(R.string.med_mark_taken))
-                }
+        if (canMark && day.status != IntakeStatus.TAKEN) {
+            TextButton(onClick = { onTakenOn(day.date) }) {
+                Text(stringResource(R.string.med_mark_taken))
             }
         }
     }

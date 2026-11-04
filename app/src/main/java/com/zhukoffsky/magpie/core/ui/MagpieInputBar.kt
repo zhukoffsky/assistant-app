@@ -1,5 +1,6 @@
 package com.zhukoffsky.magpie.core.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.zhukoffsky.magpie.R
+import com.zhukoffsky.magpie.core.ui.theme.MagpieMotion
 import com.zhukoffsky.magpie.core.ui.theme.MagpieRadius
 import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 
@@ -33,11 +35,10 @@ import com.zhukoffsky.magpie.core.ui.theme.MagpieTheme
 private val INSET = 8.dp
 
 /**
- * Строка ввода: поле и обе кнопки живут внутри одной стеклянной таблетки.
+ * Строка ввода: поле и кнопка живут внутри одной стеклянной таблетки.
  *
- * Кнопки намеренно не вынесены наружу. Снаружи они читаются как три
- * независимых элемента, и глазу приходится решать, к чему относится
- * микрофон; внутри — как одно место ввода с двумя способами заполнить его.
+ * Кнопка намеренно не вынесена наружу: снаружи она читалась бы отдельным
+ * элементом, а внутри — как часть одного места ввода.
  *
  * Общая для покупок и напоминаний: отличаются только подсказка и то, что
  * происходит по нажатию.
@@ -99,14 +100,31 @@ fun MagpieInputBar(
                     }
                 },
             )
-            AccentSquareButton(onClick = onSubmit, contentDescription = addContentDescription) {
-                Icon(painterResource(R.drawable.ic_add), contentDescription = null)
-            }
-            AccentSquareButton(
-                onClick = onVoiceInput,
-                contentDescription = stringResource(R.string.voice_input),
-            ) {
-                Icon(painter = painterResource(R.drawable.ic_mic), contentDescription = null)
+            /*
+             * Одна кнопка, а не две: пока поле пустое — микрофон, как только
+             * начали печатать — «добавить» на его месте. Так устроены
+             * мессенджеры, и причина та же: две одинаковые оранжевые кнопки
+             * спорили за внимание, а «плюс» горел даже при пустом поле, где
+             * ему нечего добавлять. Голос — главное в приложении, и в покое
+             * виден только он.
+             */
+            Crossfade(
+                targetState = value.isBlank(),
+                animationSpec = MagpieMotion.snappy(),
+                label = "inputAction",
+            ) { empty ->
+                if (empty) {
+                    AccentSquareButton(
+                        onClick = onVoiceInput,
+                        contentDescription = stringResource(R.string.voice_input),
+                    ) {
+                        Icon(painter = painterResource(R.drawable.ic_mic), contentDescription = null)
+                    }
+                } else {
+                    AccentSquareButton(onClick = onSubmit, contentDescription = addContentDescription) {
+                        Icon(painterResource(R.drawable.ic_add), contentDescription = null)
+                    }
+                }
             }
         }
     }

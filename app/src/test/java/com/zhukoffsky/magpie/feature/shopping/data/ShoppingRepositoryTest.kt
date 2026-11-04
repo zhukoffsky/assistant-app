@@ -63,6 +63,21 @@ class ShoppingRepositoryTest {
     }
 
     @Test
+    fun `deleteAll removes unchecked items too, and pokes the widget`() = runTest {
+        var changes = 0
+        val repository = ShoppingRepository(dao, Clock.fixed(now, ZoneOffset.UTC), onChanged = { changes++ })
+        repository.add("молоко")
+        repository.add("хлеб")
+        repository.setChecked(dao.items.value.first().id, true)
+        changes = 0
+
+        repository.deleteAll()
+
+        assertEquals(emptyList<String>(), dao.items.value.map { it.title })
+        assertEquals(1, changes)
+    }
+
+    @Test
     fun `observeItems exposes only the fields the UI needs`() = runTest {
         repository.add("молоко")
 

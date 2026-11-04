@@ -8,8 +8,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.feature.shopping.data.ShoppingRepository
 import com.zhukoffsky.magpie.core.settings.ShoppingPreferences
-import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingCategory
+import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingGroup
 import com.zhukoffsky.magpie.feature.shopping.domain.ShoppingItem
+import com.zhukoffsky.magpie.feature.shopping.domain.groupedForShop
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,20 +28,8 @@ data class ShoppingUiState(
 ) {
     val checkedCount: Int get() = items.count { it.isChecked }
 
-    /**
-     * Список, разложенный по отделам в порядке обхода магазина.
-     *
-     * Порядок внутри отдела — тот же, что и в плоском списке: сначала
-     * некупленное, потом отмеченное. Пустые отделы не показываются, «Прочее»
-     * оказывается последним само — по порядку объявления в перечислении.
-     */
-    val groups: List<Pair<ShoppingCategory, List<ShoppingItem>>>
-        get() = ShoppingCategory.entries
-            .mapNotNull { category ->
-                items.filter { it.category == category }
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { category to it }
-            }
+    /** Разложенный по отделам, купленное внизу; см. [groupedForShop]. */
+    val groups: List<ShoppingGroup> get() = items.groupedForShop()
 }
 
 class ShoppingViewModel(
@@ -99,6 +88,11 @@ class ShoppingViewModel(
 
     fun onClearChecked() {
         viewModelScope.launch { repository.deleteChecked() }
+    }
+
+    /** Весь список, отмеченное или нет: поход закончен, а купили не всё. */
+    fun onClearAll() {
+        viewModelScope.launch { repository.deleteAll() }
     }
 
     companion object {
