@@ -49,6 +49,12 @@ import java.time.format.DateTimeFormatter
  * погасло — принято. Гореть после отметки незачем: сделанное не требует
  * внимания, а виджет висит на экране весь день.
  *
+ * **Курсов бывает несколько, а плитка одна — та, что требует руки.** Виджет
+ * показывает ближайший неотмеченный приём дня, а остальные неотмеченные —
+ * строкой «ещё N». Отмечены все — показывается последний по времени, уже
+ * погасшим. Список всех курсов в ячейке 3×2 не помещается, а виджету нужно
+ * ответить на один вопрос: «что выпить сейчас».
+ *
  * Кнопок нет намеренно. Отметить приём можно из уведомления и с экрана, а
  * промахнуться по «Принял» на домашнем экране — значит соврать истории,
  * которую потом нечем поправить, кроме отметки задним числом.
@@ -67,7 +73,7 @@ class MedWidget : GlanceAppWidget() {
         val locale = strings.resources.configuration.locales[0]
 
         provideContent {
-            val today by repository.observeToday().collectAsState(initial = initial)
+            val doses by repository.observeToday().collectAsState(initial = initial)
 
             GlanceTheme(colors = MagpieGlanceColors) {
                 Box(
@@ -82,7 +88,7 @@ class MedWidget : GlanceAppWidget() {
                         .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    val dose = today
+                    val dose = focusDose(doses)
                     if (dose == null) {
                         Text(
                             text = strings.getString(R.string.widget_meds_empty),
@@ -97,6 +103,10 @@ class MedWidget : GlanceAppWidget() {
                                 DateTimeFormatter.ofPattern("HH:mm", locale),
                             ),
                             status = strings.getString(dose.status.labelRes),
+                            more = doses
+                                .count { it !== dose && it.status != IntakeStatus.TAKEN }
+                                .takeIf { it > 0 }
+                                ?.let { strings.resources.getQuantityString(R.plurals.widget_meds_more, it, it) },
                         )
                     }
                 }
@@ -104,6 +114,13 @@ class MedWidget : GlanceAppWidget() {
         }
     }
 }
+
+/**
+ * Приём, которому отдана плитка: первый по времени неотмеченный, а если
+ * отмечены все — последний. Список уже упорядочен по времени приёма.
+ */
+internal fun focusDose(doses: List<TodayDose>): TodayDose? =
+    doses.firstOrNull { it.status != IntakeStatus.TAKEN } ?: doses.lastOrNull()
 
 class MedWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MedWidget()
@@ -116,6 +133,8 @@ private fun DoseContent(
     unit: String,
     time: String,
     status: String,
+    /** «ещё N не принято» — когда кроме показанного есть другие неотмеченные. */
+    more: String?,
 ) {
     val taken = dose.status == IntakeStatus.TAKEN
 
@@ -151,6 +170,14 @@ private fun DoseContent(
                 ),
                 modifier = GlanceModifier.padding(top = 6.dp),
             )
+            if (more != null) {
+                Text(
+                    text = more,
+                    maxLines = 1,
+                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp),
+                    modifier = GlanceModifier.padding(top = 2.dp),
+                )
+            }
         }
     }
 }

@@ -61,6 +61,14 @@
     <string name="med_action_snooze_60">+60 мин</string>
     <string name="med_notification_title">Пора принять: %1$s</string>
     <string name="med_notification_dose">%1$d мг</string>
+    <string name="med_new_course_title">Новый курс</string>
+    <string name="med_course_label">%1$s · %2$s</string>
+    <string name="med_add_course">Добавить курс</string>
+    <string name="med_open_course">История и настройки</string>
+    <string name="med_all_courses">← Все курсы</string>
+    <string name="med_cancel">Отмена</string>
+    <string name="med_delete_confirm_title">Удалить «%1$s»?</string>
+    <string name="med_delete_confirm_text">История приёма этого курса удалится вместе с ним. Другие курсы не пострадают.</string>
     <string name="channel_meds">Приём лекарств</string>
 
     <string name="reminders_input_hint">О чём и когда напомнить</string>
@@ -117,6 +125,12 @@
     <string name="widget_reminder_empty">Ничего не запланировано</string>
     <string name="widget_meds_description">Сегодняшний приём: лекарство, доза и время</string>
     <string name="widget_meds_empty">Курс не заведён</string>
+    <plurals name="widget_meds_more">
+        <item quantity="one">ещё %1$d не принят сегодня</item>
+        <item quantity="few">ещё %1$d не приняты сегодня</item>
+        <item quantity="many">ещё %1$d не принято сегодня</item>
+        <item quantity="other">ещё %1$d не принято сегодня</item>
+    </plurals>
 
     <!--
       Образец содержимого для превью в списке выбора виджетов. Именно

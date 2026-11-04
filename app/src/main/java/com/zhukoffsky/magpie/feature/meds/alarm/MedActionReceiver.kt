@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.net.toUri
 import com.zhukoffsky.magpie.MagpieApp
 import com.zhukoffsky.magpie.core.notification.MagpieNotifications
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,13 @@ import java.time.Instant
 class MedActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        // Кнопки уведомлений прежних сборок номера курса не несут. Угадывать
+        // курс по ним нельзя: «Принял» записалось бы не тому лекарству.
+        val courseId = intent
+            .getLongExtra(EXTRA_COURSE_ID, NO_VALUE)
+            .takeIf { it != NO_VALUE }
+            ?: return
+
         val scheduledAt = intent
             .getLongExtra(EXTRA_SCHEDULED_AT, NO_VALUE)
             .takeIf { it != NO_VALUE }
@@ -37,12 +45,12 @@ class MedActionReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             try {
                 val repository = (appContext as MagpieApp).container.medRepository
-                MagpieNotifications.cancelDose(appContext)
+                MagpieNotifications.cancelDose(appContext, courseId)
 
                 if (snoozeMinutes > 0) {
-                    repository.snooze(scheduledAt, Duration.ofMinutes(snoozeMinutes))
+                    repository.snooze(courseId, scheduledAt, Duration.ofMinutes(snoozeMinutes))
                 } else {
-                    repository.markTaken(scheduledAt)
+                    repository.markTaken(courseId, scheduledAt)
                 }
             } finally {
                 pendingResult.finish()
@@ -51,26 +59,41 @@ class MedActionReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val EXTRA_COURSE_ID = "courseId"
         private const val EXTRA_SCHEDULED_AT = "scheduledAt"
         private const val EXTRA_SNOOZE_MINUTES = "snoozeMinutes"
         private const val NO_VALUE = -1L
 
-        fun takenIntent(context: Context, scheduledAt: Instant): PendingIntent =
-            pendingIntent(context, scheduledAt, snoozeMinutes = 0)
+        fun takenIntent(context: Context, courseId: Long, scheduledAt: Instant): PendingIntent =
+            pendingIntent(context, courseId, scheduledAt, snoozeMinutes = 0)
 
-        fun snoozeIntent(context: Context, scheduledAt: Instant, minutes: Long): PendingIntent =
-            pendingIntent(context, scheduledAt, minutes)
+        fun snoozeIntent(
+            context: Context,
+            courseId: Long,
+            scheduledAt: Instant,
+            minutes: Long,
+        ): PendingIntent = pendingIntent(context, courseId, scheduledAt, minutes)
 
+        /**
+         * Кнопки различаются **данными намерения**, а не кодом запроса.
+         *
+         * Пока курс был один, хватало кода запроса из минут отсрочки. Теперь
+         * уведомлений столько же, сколько курсов, и без курса в данных
+         * «Принял» у одного лекарства и у другого оказались бы одним
+         * намерением — нажатие отметило бы не ту таблетку. Приём тот же, что
+         * у кнопок напоминаний.
+         */
         private fun pendingIntent(
             context: Context,
+            courseId: Long,
             scheduledAt: Instant,
             snoozeMinutes: Long,
         ): PendingIntent = PendingIntent.getBroadcast(
             context,
-            // Код запроса различает кнопки: иначе три PendingIntent'а
-            // схлопнулись бы в один и все кнопки делали бы одно и то же.
-            snoozeMinutes.toInt(),
+            0,
             Intent(context, MedActionReceiver::class.java)
+                .setData("magpie://dose-action/$courseId/$snoozeMinutes".toUri())
+                .putExtra(EXTRA_COURSE_ID, courseId)
                 .putExtra(EXTRA_SCHEDULED_AT, scheduledAt.toEpochMilli())
                 .putExtra(EXTRA_SNOOZE_MINUTES, snoozeMinutes),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
